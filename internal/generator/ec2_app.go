@@ -44,6 +44,34 @@ module "app" {
 
 `
 
+const outputsTF = `
+output "instance_id" {
+  value       = module.app.instance_id
+  description = "EC2 instance id"
+}
+
+output "private_ip" {
+  value       = module.app.private_ip
+  description = "EC2 private ip"
+}
+
+output "public_ip" {
+  value       = module.app.public_ip
+  description = "EC2 public ip"
+}
+
+output "security_group_id" {
+  value       = module.app.security_group_id
+  description = "App SG id"
+}
+
+output "security_group_name" {
+  value       = module.app.security_group_name
+  description = "App SG name"
+}
+`
+
+
 func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	// 1) Copiar o módulo Terraform para dentro do workspace
 	repoRoot, err := findRepoRoot()
@@ -74,6 +102,14 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 
 	if err := tpl.Execute(f, cfg); err != nil {
 		return fmt.Errorf("render template: %w", err)
+	}
+
+	_ = f.Close()
+
+	// outputs.tf (root outputs)
+	outPath := filepath.Join(wsDir, "outputs.tf")
+	if err := os.WriteFile(outPath, []byte(outputsTF), 0644); err != nil {
+		return fmt.Errorf("create outputs.tf: %w", err)
 	}
 
 	return nil

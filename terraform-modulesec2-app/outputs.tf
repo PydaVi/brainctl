@@ -22,3 +22,23 @@ output "security_group_name" {
   description = "Nome do Security Group da app"
   value       = aws_security_group.app_sg.name
 }
+
+output "db_instance_id" {
+  value       = var.enable_db ? aws_instance.db[0].id : null
+  description = "DB EC2 instance id"
+}
+
+output "db_private_ip" {
+  value       = var.enable_db ? aws_instance.db[0].private_ip : null
+  description = "DB EC2 private ip"
+}
+
+output "db_security_group_id" {
+  value       = var.enable_db ? aws_security_group.db_sg[0].id : null
+  description = "DB SG id"
+}
+
+output "db_security_group_name" {
+  value       = var.enable_db ? aws_security_group.db_sg[0].name : null
+  description = "DB SG name"
+}

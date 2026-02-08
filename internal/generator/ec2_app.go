@@ -40,6 +40,11 @@ module "app" {
 
   instance_type      = "{{ .EC2.InstanceType }}"
   allowed_rdp_cidr   = "0.0.0.0/0"
+
+  enable_db        = {{ .DB.Enabled }}
+  db_instance_type = "{{ .DB.InstanceType }}"
+  db_port          = {{ .DB.Port }}
+
 }
 
 `
@@ -68,6 +73,26 @@ output "security_group_id" {
 output "security_group_name" {
   value       = module.app.security_group_name
   description = "App SG name"
+}
+
+output "db_instance_id" {
+  value       = module.app.db_instance_id
+  description = "DB instance id"
+}
+
+output "db_private_ip" {
+  value       = module.app.db_private_ip
+  description = "DB private ip"
+}
+
+output "db_security_group_id" {
+  value       = module.app.db_security_group_id
+  description = "DB SG id"
+}
+
+output "db_security_group_name" {
+  value       = module.app.db_security_group_name
+  description = "DB SG name"
 }
 `
 

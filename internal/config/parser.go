@@ -24,6 +24,13 @@ type AppConfig struct {
 		InstanceType string `yaml:"instance_type"`
 		OS           string `yaml:"os"`
 	} `yaml:"ec2"`
+
+	DB struct {
+		Enabled      bool   `yaml:"enabled"`
+		InstanceType string `yaml:"instance_type"`
+		Port         int    `yaml:"port"`
+	} `yaml:"db"`
+
 }
 
 func LoadConfig(path string) (*AppConfig, error) {
@@ -67,6 +74,18 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.EC2.OS != "windows-2022" {
 		return fmt.Errorf("ec2.os unsupported: %s (supported: windows-2022)", c.EC2.OS)
+	}
+	
+	if c.DB.Enabled {
+		if c.DB.InstanceType == "" {
+			c.DB.InstanceType = "t3.micro"
+		}
+		if c.DB.Port == 0 {
+			c.DB.Port = 1433
+		}
+		if c.DB.Port < 1 || c.DB.Port > 65535 {
+			return fmt.Errorf("db.port must be between 1 and 65535")
+		}
 	}
 
 	return nil

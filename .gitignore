@@ -1,0 +1,41 @@
+# Go
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform (NUNCA versionar state)
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+
+# brainctl workspaces gerados
+.brainctl/
+
+# Logs
+*.log
+
+# Env / secrets
+.env
+*.pem
+*.key
+*.p12
+*.pfx

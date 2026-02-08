@@ -1,0 +1,12 @@
+app:
+  name: brain-test
+  environment: dev
+  region: sa-east-1
+
+infrastructure:
+  vpc_id: vpc-0efe480ab7051b401
+  subnet_id: subnet-027681aad79f3c2cf
+
+ec2:
+  instance_type: t3.micro
+  os: windows-2022

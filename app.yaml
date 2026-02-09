@@ -15,3 +15,13 @@ db:
   enabled: true
   instance_type: t3.micro
   port: 1433
+
+lb:
+  enabled: true
+  scheme: public         # public | private
+  subnet_ids:
+    - subnet-0816bd7998fc3436b
+    - subnet-027681aad79f3c2cf
+  listener_port: 80
+  target_port: 80
+  allowed_cidr: 0.0.0.0/0

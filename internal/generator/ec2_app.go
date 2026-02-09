@@ -38,15 +38,21 @@ module "app" {
   vpc_id    = "{{ .Infrastructure.VpcID }}"
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
-  instance_type      = "{{ .EC2.InstanceType }}"
-  allowed_rdp_cidr   = "0.0.0.0/0"
+  instance_type    = "{{ .EC2.InstanceType }}"
+  allowed_rdp_cidr = "0.0.0.0/0"
 
   enable_db        = {{ .DB.Enabled }}
   db_instance_type = "{{ .DB.InstanceType }}"
   db_port          = {{ .DB.Port }}
 
-}
+  enable_lb        = {{ .LB.Enabled }}
+  lb_scheme        = "{{ .LB.Scheme }}"
+  lb_subnet_ids    = [{{- range $i, $s := .LB.SubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
 
+  lb_listener_port = {{ .LB.ListenerPort }}
+  app_port         = {{ .LB.TargetPort }}
+  lb_allowed_cidr  = "{{ .LB.AllowedCIDR }}"
+}
 `
 
 const outputsTF = `
@@ -94,8 +100,23 @@ output "db_security_group_name" {
   value       = module.app.db_security_group_name
   description = "DB SG name"
 }
-`
 
+output "alb_dns_name" {
+  value       = module.app.alb_dns_name
+  description = "ALB DNS name"
+}
+
+# (opcionais, mas úteis)
+output "alb_arn" {
+  value       = module.app.alb_arn
+  description = "ALB ARN"
+}
+
+output "alb_target_group_arn" {
+  value       = module.app.alb_target_group_arn
+  description = "ALB Target Group ARN"
+}
+`
 
 func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	// 1) Copiar o módulo Terraform para dentro do workspace
@@ -129,9 +150,7 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	_ = f.Close()
-
-	// outputs.tf (root outputs)
+	// 3) outputs.tf (root outputs)
 	outPath := filepath.Join(wsDir, "outputs.tf")
 	if err := os.WriteFile(outPath, []byte(outputsTF), 0644); err != nil {
 		return fmt.Errorf("create outputs.tf: %w", err)
@@ -141,7 +160,6 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 }
 
 // findRepoRoot sobe diretórios a partir do cwd até achar um go.mod.
-// Isso permite rodar o brainctl de qualquer subpasta (e.g. ./cmd/brainctl).
 func findRepoRoot() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -193,7 +211,6 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		// segurança: não permitir escapar do destino
 		rel = filepath.Clean(rel)
 		if strings.HasPrefix(rel, "..") {
 			return fmt.Errorf("invalid relative path during copy: %q", rel)
@@ -202,14 +219,13 @@ func copyDir(src, dst string) error {
 		targetPath := filepath.Join(dst, rel)
 
 		if d.IsDir() {
-			// mantém permissões básicas
 			if rel == "." {
 				return nil
 			}
 			return os.MkdirAll(targetPath, 0o755)
 		}
 
-		// evita copiar symlink (pra não dar surpresa)
+		// não copia symlink
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
@@ -233,9 +249,7 @@ func copyFile(srcFile, dstFile string) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = out.Close()
-	}()
+	defer func() { _ = out.Close() }()
 
 	if _, err := io.Copy(out, in); err != nil {
 		return err

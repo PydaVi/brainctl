@@ -38,6 +38,25 @@ variable "allowed_rdp_cidr" {
 # ----------------------------
 # Compute - APP
 # ----------------------------
+
+variable "imds_v2_required" {
+  description = "Exige IMDSv2 (http_tokens=required) nas instâncias da aplicação"
+  type        = bool
+  default     = false
+}
+
+variable "app_extra_ingress_rules" {
+  description = "Regras extras de ingress no SG da APP (via overrides)"
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  default = []
+}
+
 variable "instance_type" {
   description = "Tipo da instância da aplicação (ex: t3.micro)"
   type        = string
@@ -50,6 +69,18 @@ variable "enable_db" {
   description = "Habilita a criação da EC2 de banco (db) + SG de banco"
   type        = bool
   default     = true
+}
+
+variable "db_extra_ingress_rules" {
+  description = "Regras extras de ingress no SG do DB (via overrides)"
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  default = []
 }
 
 variable "db_instance_type" {
@@ -95,6 +126,18 @@ variable "app_port" {
   description = "Porta da aplicação no target group (porta do tráfego ALB -> EC2 APP)"
   type        = number
   default     = 80
+}
+
+variable "alb_extra_ingress_rules" {
+  description = "Regras extras de ingress no SG do ALB (via overrides)"
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  default = []
 }
 
 variable "lb_allowed_cidr" {

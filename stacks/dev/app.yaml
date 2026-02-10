@@ -1,32 +1,28 @@
-# Arquivo declarativo principal consumido pelo brainctl.
 app:
   name: brain-test
   environment: dev
   region: us-east-1
 
-# Rede base onde os recursos serão criados.
 infrastructure:
   vpc_id: vpc-0efe480ab7051b401
   subnet_id: subnet-0816bd7998fc3436b
   subnet_ids:
     - subnet-0816bd7998fc3436b
-    - ssubnet-054b5772b4e01ad14
+    - subnet-054b5772b4e01ad14
 
-# Servidor de aplicação.
 ec2:
   instance_type: t3.micro
   os: windows-2022
+  imds_v2_required: false
 
-# Banco opcional (EC2 dedicada).
 db:
   enabled: true
   instance_type: t3.micro
   port: 1433
 
-# ALB opcional.
 lb:
   enabled: true
-  scheme: public # public | private
+  scheme: private
   subnet_ids:
     - subnet-0816bd7998fc3436b
     - subnet-054b5772b4e01ad14
@@ -34,9 +30,8 @@ lb:
   target_port: 80
   allowed_cidr: 0.0.0.0/0
 
-# Sprint: escala/resiliência da camada de aplicação.
 app_scaling:
-  enabled: true
+  enabled: false
   subnet_ids:
     - subnet-0816bd7998fc3436b
     - subnet-054b5772b4e01ad14
@@ -45,7 +40,6 @@ app_scaling:
   desired_capacity: 2
   cpu_target: 60
 
-# Observabilidade base + alertas por e-mail (SNS).
 observability:
   enabled: true
   cpu_high_threshold: 80

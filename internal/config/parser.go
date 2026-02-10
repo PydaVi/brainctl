@@ -25,15 +25,19 @@ type AppConfig struct {
 	} `yaml:"infrastructure"`
 
 	EC2 struct {
-		InstanceType string `yaml:"instance_type"`
-		OS           string `yaml:"os"`
-		AMI          string `yaml:"ami"`
+		InstanceType   string `yaml:"instance_type"`
+		OS             string `yaml:"os"`
+		AMI            string `yaml:"ami"`
+		IMDSv2Required bool   `yaml:"imds_v2_required"`
 	} `yaml:"ec2"`
 
 	DB            DBConfig            `yaml:"db"`
 	LB            LBConfig            `yaml:"lb"`
 	AppScaling    AppScalingConfig    `yaml:"app_scaling"`
 	Observability ObservabilityConfig `yaml:"observability"`
+
+	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
+	RuntimeOverrides RuntimeOverrides `yaml:"-"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -71,6 +75,30 @@ type ObservabilityConfig struct {
 	AlertEmail       string `yaml:"alert_email"`
 }
 
+type RuntimeOverrides struct {
+	AppExtraIngress []IngressRule
+	DBExtraIngress  []IngressRule
+	ALBExtraIngress []IngressRule
+}
+
+type IngressRule struct {
+	Description string   `yaml:"description"`
+	FromPort    int      `yaml:"from_port"`
+	ToPort      int      `yaml:"to_port"`
+	Protocol    string   `yaml:"protocol"`
+	CIDRBlocks  []string `yaml:"cidr_blocks"`
+}
+
+type OverrideFile struct {
+	Overrides []OverrideOp `yaml:"overrides"`
+}
+
+type OverrideOp struct {
+	Op    string `yaml:"op"`
+	Path  string `yaml:"path"`
+	Value any    `yaml:"value"`
+}
+
 // LoadConfig lê e desserializa o YAML informado pelo usuário.
 func LoadConfig(path string) (*AppConfig, error) {
 	data, err := os.ReadFile(path)
@@ -84,6 +112,76 @@ func LoadConfig(path string) (*AppConfig, error) {
 	}
 
 	return &cfg, nil
+}
+
+// ApplyOverridesFile aplica customizações extras controladas por whitelist.
+func ApplyOverridesFile(cfg *AppConfig, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var f OverrideFile
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return fmt.Errorf("invalid overrides file: %w", err)
+	}
+
+	for i, o := range f.Overrides {
+		if err := applyOverride(cfg, o); err != nil {
+			return fmt.Errorf("override[%d] (%s %s): %w", i, o.Op, o.Path, err)
+		}
+	}
+	return nil
+}
+
+func applyOverride(cfg *AppConfig, o OverrideOp) error {
+	switch o.Path {
+	case "security_groups.app.ingress":
+		r, err := parseAppendIngressRule(o, "security_groups.app.ingress")
+		if err != nil {
+			return err
+		}
+		cfg.RuntimeOverrides.AppExtraIngress = append(cfg.RuntimeOverrides.AppExtraIngress, r)
+		return nil
+	case "security_groups.db.ingress":
+		r, err := parseAppendIngressRule(o, "security_groups.db.ingress")
+		if err != nil {
+			return err
+		}
+		cfg.RuntimeOverrides.DBExtraIngress = append(cfg.RuntimeOverrides.DBExtraIngress, r)
+		return nil
+	case "security_groups.alb.ingress":
+		r, err := parseAppendIngressRule(o, "security_groups.alb.ingress")
+		if err != nil {
+			return err
+		}
+		cfg.RuntimeOverrides.ALBExtraIngress = append(cfg.RuntimeOverrides.ALBExtraIngress, r)
+		return nil
+	default:
+		return fmt.Errorf("path not allowed")
+	}
+}
+
+func parseAppendIngressRule(o OverrideOp, path string) (IngressRule, error) {
+	if o.Op != "append" {
+		return IngressRule{}, fmt.Errorf("only 'append' is allowed for %s", path)
+	}
+	raw, err := yaml.Marshal(o.Value)
+	if err != nil {
+		return IngressRule{}, err
+	}
+
+	var r IngressRule
+	if err := yaml.Unmarshal(raw, &r); err != nil {
+		return IngressRule{}, fmt.Errorf("invalid ingress rule: %w", err)
+	}
+	if r.Protocol == "" {
+		r.Protocol = "tcp"
+	}
+	if len(r.CIDRBlocks) == 0 {
+		return IngressRule{}, fmt.Errorf("cidr_blocks is required")
+	}
+	return r, nil
 }
 
 // Validate aplica regras e defaults do contrato declarativo.

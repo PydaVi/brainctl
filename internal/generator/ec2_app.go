@@ -40,6 +40,7 @@ module "app" {
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
   instance_type    = "{{ .EC2.InstanceType }}"
+  imds_v2_required = {{ .EC2.IMDSv2Required }}
   allowed_rdp_cidr = "0.0.0.0/0"
 
   enable_db        = {{ .DB.Enabled }}
@@ -64,6 +65,10 @@ module "app" {
   enable_observability = {{ .ObservabilityEnabled }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
+
+  app_extra_ingress_rules = [{{ .AppExtraIngressHCL }}]
+  db_extra_ingress_rules  = [{{ .DBExtraIngressHCL }}]
+  alb_extra_ingress_rules = [{{ .ALBExtraIngressHCL }}]
 }
 `
 
@@ -189,6 +194,9 @@ output "observability_alert_email" {
 type renderData struct {
 	*config.AppConfig
 	ObservabilityEnabled bool
+	AppExtraIngressHCL   string
+	DBExtraIngressHCL    string
+	ALBExtraIngressHCL   string
 }
 
 // GenerateEC2App monta workspace Terraform completo para a aplicação.
@@ -217,7 +225,13 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	}
 	defer f.Close()
 
-	data := renderData{AppConfig: cfg, ObservabilityEnabled: cfg.Observability.Enabled != nil && *cfg.Observability.Enabled}
+	data := renderData{
+		AppConfig:            cfg,
+		ObservabilityEnabled: cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		AppExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:    buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+	}
 	if err := tpl.Execute(f, data); err != nil {
 		return fmt.Errorf("render template: %w", err)
 	}
@@ -228,6 +242,21 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	}
 
 	return nil
+}
+
+func buildIngressRulesHCL(rules []config.IngressRule) string {
+	if len(rules) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(rules))
+	for _, r := range rules {
+		cidrs := make([]string, 0, len(r.CIDRBlocks))
+		for _, c := range r.CIDRBlocks {
+			cidrs = append(cidrs, fmt.Sprintf("\"%s\"", c))
+		}
+		parts = append(parts, fmt.Sprintf("{ description = %q, from_port = %d, to_port = %d, protocol = %q, cidr_blocks = [%s] }", r.Description, r.FromPort, r.ToPort, r.Protocol, strings.Join(cidrs, ", ")))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // findRepoRoot sobe diretórios até localizar go.mod.

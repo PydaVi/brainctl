@@ -1,0 +1,46 @@
+app:
+  name: corinthians
+  environment: prod
+  region: us-east-1
+
+infrastructure:
+  vpc_id: vpc-0efe480ab7051b401
+  subnet_id: subnet-0816bd7998fc3436b
+  subnet_ids:
+    - subnet-0816bd7998fc3436b
+    - subnet-054b5772b4e01ad14
+
+ec2:
+  instance_type: t3.micro
+  os: windows-2022
+  imds_v2_required: false
+
+db:
+  enabled: true
+  instance_type: t3.micro
+  port: 1433
+
+lb:
+  enabled: true
+  scheme: public
+  subnet_ids:
+    - subnet-0816bd7998fc3436b
+    - subnet-054b5772b4e01ad14
+  listener_port: 80
+  target_port: 80
+  allowed_cidr: 0.0.0.0/0
+
+app_scaling:
+  enabled: true
+  subnet_ids:
+    - subnet-0816bd7998fc3436b
+    - subnet-054b5772b4e01ad14
+  min_size: 2
+  max_size: 4
+  desired_capacity: 2
+  cpu_target: 60
+
+observability:
+  enabled: true
+  cpu_high_threshold: 80
+  alert_email: "augustt.fabio@gmail.com"

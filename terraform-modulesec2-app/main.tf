@@ -195,6 +195,17 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = [var.allowed_rdp_cidr]
   }
 
+  dynamic "ingress" {
+    for_each = var.app_extra_ingress_rules
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -216,6 +227,11 @@ resource "aws_instance" "app" {
   subnet_id     = var.enable_app_asg ? null : var.subnet_id
 
   vpc_security_group_ids = [aws_security_group.app_sg.id]
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = var.imds_v2_required ? "required" : "optional"
+  }
 
   iam_instance_profile = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
   user_data            = var.enable_observability ? local.cw_user_data_app : null
@@ -240,6 +256,17 @@ resource "aws_security_group" "db_sg" {
     to_port         = var.db_port
     protocol        = "tcp"
     security_groups = [aws_security_group.app_sg.id]
+  }
+
+  dynamic "ingress" {
+    for_each = var.db_extra_ingress_rules
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
   }
 
   egress {
@@ -287,6 +314,17 @@ resource "aws_security_group" "alb_sg" {
     to_port     = var.lb_listener_port
     protocol    = "tcp"
     cidr_blocks = [var.lb_allowed_cidr]
+  }
+
+  dynamic "ingress" {
+    for_each = var.alb_extra_ingress_rules
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
   }
 
   egress {
@@ -386,6 +424,11 @@ resource "aws_launch_template" "app" {
   }
 
   user_data = var.enable_observability ? base64encode(local.cw_user_data_app) : null
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = var.imds_v2_required ? "required" : "optional"
+  }
 
   tag_specifications {
     resource_type = "instance"

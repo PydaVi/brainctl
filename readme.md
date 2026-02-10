@@ -1,77 +1,91 @@
 # brainctl 🧠
 
-brainctl is a CLI tool that automates AWS infrastructure provisioning using Terraform based on a simple declarative YAML configuration.
+`brainctl` é uma CLI em Go para provisionar workloads padronizados na AWS com base em YAML declarativo.
 
-The project aims to simplify infrastructure creation and standardize cloud environments through automation and reusable Terraform modules.
+> MVP atual: foco em provisionamento base, observabilidade e escala da camada APP com Auto Scaling Group.
 
----
+## Arquitetura de diretórios (preparada para crescer)
 
-## 🚀 What brainctl does
+Mesmo usando uma única stack por enquanto, a estrutura recomendada já separa por ambiente:
 
-Given a configuration file (`app.yaml`), brainctl:
-
-* Validates infrastructure configuration
-* Generates Terraform workspaces automatically
-* Injects internal Terraform modules
-* Manages remote Terraform state (S3 + DynamoDB)
-* Runs Terraform plan to preview infrastructure changes
-
----
-
-## 📄 Example Configuration
-
-```yaml
-app:
-  name: brain-test
-  environment: dev
-  region: sa-east-1
-
-infrastructure:
-  vpc_id: vpc-xxxx
-  subnet_id: subnet-xxxx
-
-ec2:
-  instance_type: t3.micro
-  os: windows2022
+```text
+stacks/
+  dev/
+    app.yaml
+    overrides.yaml
+  prod/
+    app.yaml
+    overrides.yaml
 ```
 
----
-
-## ▶️ Usage
-
-Run:
+Com isso, o comando passa a usar `--stack-dir`:
 
 ```bash
-go run ./cmd/brainctl plan
+go run ./cmd/brainctl plan --stack-dir stacks/dev
 ```
 
-brainctl will:
+Se quiser manter o modo antigo, ainda funciona com `-f app.yaml`.
 
-1. Parse and validate the YAML file
-2. Generate Terraform workspace
-3. Initialize Terraform backend
-4. Run Terraform plan
+## Override controlado (whitelist)
 
----
+`overrides.yaml` é opcional e permite customizações sem quebrar o contrato principal.
 
-## ⚙️ Requirements
+Paths suportados no MVP (somente Security Groups):
+- `security_groups.app.ingress` (`append`)
+- `security_groups.db.ingress` (`append`)
+- `security_groups.alb.ingress` (`append`)
 
-* Go 1.22+
-* Terraform 1.6+
-* AWS credentials configured locally
+Exemplo (append nos SGs de APP, DB e ALB):
 
----
+```yaml
+overrides:
+  - op: append
+    path: security_groups.app.ingress
+    value:
+      description: "RDP Office"
+      from_port: 3389
+      to_port: 3389
+      protocol: tcp
+      cidr_blocks:
+        - "177.10.10.0/24"
 
-## 🗺 Roadmap
+  - op: append
+    path: security_groups.db.ingress
+    value:
+      description: "DB from BI VPN"
+      from_port: 1433
+      to_port: 1433
+      protocol: tcp
+      cidr_blocks:
+        - "10.100.0.0/16"
 
-* Apply / Destroy lifecycle commands
-* Drift detection
-* Multi-tier architecture support
-* Monitoring automation
-* Governance and policy controls
+  - op: append
+    path: security_groups.alb.ingress
+    value:
+      description: "ALB from corporate proxy"
+      from_port: 80
+      to_port: 80
+      protocol: tcp
+      cidr_blocks:
+        - "200.200.10.0/24"
+```
 
----
+## Fluxo
 
-## 📜 License
+```text
+app.yaml (+ overrides.yaml) -> parser/validator (Go) -> generator (Go) -> Terraform workspace -> AWS
+```
 
-MIT
+## Comandos
+
+```bash
+go run ./cmd/brainctl plan   --stack-dir stacks/dev
+go run ./cmd/brainctl apply  --stack-dir stacks/dev
+go run ./cmd/brainctl status --stack-dir stacks/dev
+```
+
+Se quiser desabilitar overrides:
+
+```bash
+go run ./cmd/brainctl plan --stack-dir stacks/dev --overrides ""
+```

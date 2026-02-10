@@ -12,6 +12,7 @@ import (
 	"github.com/PydaVi/brainctl/internal/config"
 )
 
+// mainTF é o template do root module gerado por workload.
 const mainTF = `
 terraform {
   required_version = ">= 1.6.0"
@@ -59,6 +60,7 @@ module "app" {
 }
 `
 
+// outputsTF expõe, no root module, os outputs principais para status/output.
 const outputsTF = `
 output "instance_id" {
   value       = module.app.instance_id
@@ -156,11 +158,13 @@ output "observability_alert_email" {
 }
 `
 
+// renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
 	ObservabilityEnabled bool
 }
 
+// GenerateEC2App monta workspace Terraform completo para a aplicação.
 func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
@@ -199,6 +203,7 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	return nil
 }
 
+// findRepoRoot sobe diretórios até localizar go.mod.
 func findRepoRoot() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -221,6 +226,7 @@ func findRepoRoot() (string, error) {
 	return "", fmt.Errorf("could not find go.mod starting from %q (walked up to filesystem root)", cwd)
 }
 
+// copyDir replica o módulo Terraform para dentro do workspace.
 func copyDir(src, dst string) error {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
@@ -271,6 +277,7 @@ func copyDir(src, dst string) error {
 	})
 }
 
+// copyFile copia arquivo a arquivo preservando estrutura de destino.
 func copyFile(srcFile, dstFile string) error {
 	in, err := os.Open(srcFile)
 	if err != nil {

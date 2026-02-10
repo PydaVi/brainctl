@@ -31,6 +31,7 @@ type AppConfig struct {
 	Observability ObservabilityConfig `yaml:"observability"`
 }
 
+// DBConfig define o bloco opcional de banco.
 type DBConfig struct {
 	Enabled      bool   `yaml:"enabled"`
 	InstanceType string `yaml:"instance_type"`
@@ -39,6 +40,7 @@ type DBConfig struct {
 	AMI          string `yaml:"ami"`
 }
 
+// LBConfig define parâmetros de load balancer.
 type LBConfig struct {
 	Enabled      bool     `yaml:"enabled"`
 	Scheme       string   `yaml:"scheme"`
@@ -48,12 +50,14 @@ type LBConfig struct {
 	AllowedCIDR  string   `yaml:"allowed_cidr"`
 }
 
+// ObservabilityConfig controla dashboards, alarmes e SNS.
 type ObservabilityConfig struct {
 	Enabled          *bool  `yaml:"enabled"`
 	CPUHighThreshold int    `yaml:"cpu_high_threshold"`
 	AlertEmail       string `yaml:"alert_email"`
 }
 
+// LoadConfig lê e desserializa o YAML informado pelo usuário.
 func LoadConfig(path string) (*AppConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -68,6 +72,7 @@ func LoadConfig(path string) (*AppConfig, error) {
 	return &cfg, nil
 }
 
+// Validate aplica regras e defaults do contrato declarativo.
 func (c *AppConfig) Validate() error {
 	if c.App.Name == "" {
 		return fmt.Errorf("app.name is required")

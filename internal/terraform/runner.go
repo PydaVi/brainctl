@@ -8,18 +8,23 @@ import (
 	"os/exec"
 )
 
+// Runner encapsula a execução do Terraform dentro de um diretório de workspace.
+// Ele é usado pelos comandos `plan`, `apply`, `destroy`, `status` e `output`.
 type Runner struct {
 	Dir string
 }
 
+// NewRunner cria um runner apontando para o workspace Terraform gerado.
 func NewRunner(dir string) *Runner {
 	return &Runner{Dir: dir}
 }
 
+// Init prepara providers, backend remoto e módulos no workspace.
 func (r *Runner) Init() error {
 	return r.run("init", "-reconfigure", "-input=false", "-no-color")
 }
 
+// Plan executa o plano padrão do Terraform.
 func (r *Runner) Plan() error {
 	return r.run("plan", "-input=false", "-no-color")
 }
@@ -51,6 +56,8 @@ func (r *Runner) PlanDetailed() (hasChanges bool, err error) {
 	return false, fmt.Errorf("terraform plan failed: %w", err)
 }
 
+// Apply aplica mudanças no ambiente.
+// Se autoApprove=true, ignora prompt interativo.
 func (r *Runner) Apply(autoApprove bool) error {
 	args := []string{"apply", "-input=false", "-no-color"}
 	if autoApprove {
@@ -59,6 +66,8 @@ func (r *Runner) Apply(autoApprove bool) error {
 	return r.run(args...)
 }
 
+// Destroy remove recursos do workspace.
+// Se autoApprove=true, ignora prompt interativo.
 func (r *Runner) Destroy(autoApprove bool) error {
 	args := []string{"destroy", "-input=false", "-no-color"}
 	if autoApprove {
@@ -67,7 +76,7 @@ func (r *Runner) Destroy(autoApprove bool) error {
 	return r.run(args...)
 }
 
-// OutputJSON retorna o stdout do `terraform output -json`
+// OutputJSON retorna o stdout do `terraform output -json`.
 func (r *Runner) OutputJSON() ([]byte, error) {
 	cmd := exec.Command("terraform", "output", "-json", "-no-color")
 	cmd.Dir = r.Dir
@@ -83,8 +92,8 @@ func (r *Runner) OutputJSON() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// StatePull tenta puxar o state remoto. Se não conseguir, retorna present=false.
-// (No MVP, tratamos qualquer falha como “missing/unreachable”.)
+// StatePull tenta puxar o state remoto.
+// No MVP, qualquer erro é tratado como state ausente/inacessível.
 func (r *Runner) StatePull() (present bool, err error) {
 	cmd := exec.Command("terraform", "state", "pull")
 	cmd.Dir = r.Dir
@@ -100,6 +109,7 @@ func (r *Runner) StatePull() (present bool, err error) {
 	return true, nil
 }
 
+// run centraliza execução de comandos Terraform no diretório do workspace.
 func (r *Runner) run(args ...string) error {
 	cmd := exec.Command("terraform", args...)
 	cmd.Dir = r.Dir

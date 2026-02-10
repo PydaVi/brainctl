@@ -5,10 +5,12 @@ import (
 	"fmt"
 )
 
+// tfOutputItem representa o formato padrão do `terraform output -json`.
 type tfOutputItem struct {
 	Value any `json:"value"`
 }
 
+// ParseTerraformOutputJSON simplifica o output para mapa chave->valor.
 func ParseTerraformOutputJSON(raw []byte) (map[string]any, error) {
 	m := map[string]tfOutputItem{}
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -22,6 +24,7 @@ func ParseTerraformOutputJSON(raw []byte) (map[string]any, error) {
 	return out, nil
 }
 
+// PrintPrettyStatus renderiza um resumo humano amigável para o comando status.
 func PrintPrettyStatus(v map[string]any) {
 	fmt.Println("Resources:")
 
@@ -79,6 +82,7 @@ func PrintPrettyStatus(v map[string]any) {
 	}
 }
 
+// asString converte valores genéricos em string com fallback.
 func asString(x any, fallback string) string {
 	if x == nil {
 		return fallback
@@ -98,6 +102,7 @@ func asString(x any, fallback string) string {
 	}
 }
 
+// asStringSlice converte um array genérico para []string ignorando vazios.
 func asStringSlice(x any) []string {
 	vals, ok := x.([]any)
 	if !ok {

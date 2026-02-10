@@ -14,9 +14,16 @@ import (
 )
 
 const (
+	// backendBucket é o bucket S3 usado para state remoto do Terraform.
 	backendBucket = "brainctl-terraform-states"
 )
 
+// main define todos os subcomandos da CLI.
+// Pipeline base de cada comando:
+// 1) LoadConfig + Validate
+// 2) Prepare workspace
+// 3) Generate Terraform
+// 4) Executar operação do Terraform
 func main() {
 	var file string
 
@@ -25,7 +32,6 @@ func main() {
 		Short: "brainctl manages app infra from a declarative YAML",
 	}
 
-	// -------- plan --------
 	planCmd := &cobra.Command{
 		Use:   "plan",
 		Short: "Generate terraform and run terraform init/plan",
@@ -57,7 +63,6 @@ func main() {
 	}
 	planCmd.Flags().StringVarP(&file, "file", "f", "app.yaml", "Path to app.yaml")
 
-	// -------- apply --------
 	applyCmd := &cobra.Command{
 		Use:   "apply",
 		Short: "Generate terraform and run terraform init/apply (auto-approve by default)",
@@ -91,7 +96,6 @@ func main() {
 	applyCmd.Flags().StringVarP(&file, "file", "f", "app.yaml", "Path to app.yaml")
 	applyCmd.Flags().Bool("auto-approve", true, "Skip interactive approval (default: true)")
 
-	// -------- destroy --------
 	destroyCmd := &cobra.Command{
 		Use:   "destroy",
 		Short: "Run terraform destroy for the generated workspace (auto-approve by default)",
@@ -125,7 +129,6 @@ func main() {
 	destroyCmd.Flags().StringVarP(&file, "file", "f", "app.yaml", "Path to app.yaml")
 	destroyCmd.Flags().Bool("auto-approve", true, "Skip interactive approval (default: true)")
 
-	// -------- status --------
 	statusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show workspace/backend/state and key resource info (pretty)",
@@ -191,7 +194,6 @@ func main() {
 	}
 	statusCmd.Flags().StringVarP(&file, "file", "f", "app.yaml", "Path to app.yaml")
 
-	// -------- output --------
 	outputCmd := &cobra.Command{
 		Use:   "output",
 		Short: "Print terraform outputs (json)",

@@ -52,6 +52,10 @@ module "app" {
   lb_listener_port = {{ .LB.ListenerPort }}
   app_port         = {{ .LB.TargetPort }}
   lb_allowed_cidr  = "{{ .LB.AllowedCIDR }}"
+
+  enable_observability = {{ .ObservabilityEnabled }}
+  cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
+  alert_email          = "{{ .Observability.AlertEmail }}"
 }
 `
 
@@ -106,7 +110,6 @@ output "alb_dns_name" {
   description = "ALB DNS name"
 }
 
-# (opcionais, mas úteis)
 output "alb_arn" {
   value       = module.app.alb_arn
   description = "ALB ARN"
@@ -116,10 +119,49 @@ output "alb_target_group_arn" {
   value       = module.app.alb_target_group_arn
   description = "ALB Target Group ARN"
 }
+
+output "observability_app_dashboard_name" {
+  value       = module.app.observability_app_dashboard_name
+  description = "CloudWatch APP dashboard name"
+}
+
+output "observability_app_dashboard_url" {
+  value       = module.app.observability_app_dashboard_url
+  description = "CloudWatch APP dashboard URL"
+}
+
+output "observability_db_dashboard_name" {
+  value       = module.app.observability_db_dashboard_name
+  description = "CloudWatch DB dashboard name"
+}
+
+output "observability_db_dashboard_url" {
+  value       = module.app.observability_db_dashboard_url
+  description = "CloudWatch DB dashboard URL"
+}
+
+output "observability_alarm_names" {
+  value       = module.app.observability_alarm_names
+  description = "CloudWatch alarm names"
+}
+
+output "observability_sns_topic_arn" {
+  value       = module.app.observability_sns_topic_arn
+  description = "SNS topic ARN used for alerts"
+}
+
+output "observability_alert_email" {
+  value       = module.app.observability_alert_email
+  description = "Configured alert email"
+}
 `
 
+type renderData struct {
+	*config.AppConfig
+	ObservabilityEnabled bool
+}
+
 func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
-	// 1) Copiar o módulo Terraform para dentro do workspace
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		return fmt.Errorf("find repo root: %w", err)
@@ -132,9 +174,7 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 		return fmt.Errorf("copy module dir: %w", err)
 	}
 
-	// 2) Renderizar main.tf dentro do workspace
 	mainTFPath := filepath.Join(wsDir, "main.tf")
-
 	tpl, err := template.New("main.tf").Parse(mainTF)
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
@@ -146,20 +186,19 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	}
 	defer f.Close()
 
-	if err := tpl.Execute(f, cfg); err != nil {
+	data := renderData{AppConfig: cfg, ObservabilityEnabled: cfg.Observability.Enabled != nil && *cfg.Observability.Enabled}
+	if err := tpl.Execute(f, data); err != nil {
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	// 3) outputs.tf (root outputs)
 	outPath := filepath.Join(wsDir, "outputs.tf")
-	if err := os.WriteFile(outPath, []byte(outputsTF), 0644); err != nil {
+	if err := os.WriteFile(outPath, []byte(outputsTF), 0o644); err != nil {
 		return fmt.Errorf("create outputs.tf: %w", err)
 	}
 
 	return nil
 }
 
-// findRepoRoot sobe diretórios a partir do cwd até achar um go.mod.
 func findRepoRoot() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -194,7 +233,6 @@ func copyDir(src, dst string) error {
 		return fmt.Errorf("src is not a directory: %s", src)
 	}
 
-	// recria destino do zero (evita lixo/arquivos antigos)
 	if err := os.RemoveAll(dst); err != nil {
 		return fmt.Errorf("remove dst: %w", err)
 	}
@@ -225,7 +263,6 @@ func copyDir(src, dst string) error {
 			return os.MkdirAll(targetPath, 0o755)
 		}
 
-		// não copia symlink
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}

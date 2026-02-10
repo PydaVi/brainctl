@@ -102,3 +102,24 @@ variable "lb_allowed_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+# ----------------------------
+# Observability (Sprint 1)
+# ----------------------------
+variable "enable_observability" {
+  description = "Habilita recursos base de observabilidade (CloudWatch Agent, dashboards e alarmes)"
+  type        = bool
+  default     = true
+}
+
+variable "cpu_high_threshold" {
+  description = "Threshold de CPU alta para alarmes"
+  type        = number
+  default     = 80
+}
+
+variable "alert_email" {
+  description = "E-mail para inscrição no tópico SNS que recebe os alertas (opcional)"
+  type        = string
+  default     = ""
+}

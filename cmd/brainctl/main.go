@@ -160,6 +160,11 @@ func main() {
 			fmt.Printf("Workspace: %s\n", wsDir)
 			fmt.Printf("Backend bucket: %s\n", backendBucket)
 			fmt.Printf("Backend key: %s\n", backendKey)
+			if cfg.Observability.Enabled != nil && *cfg.Observability.Enabled {
+				fmt.Printf("Observability: enabled (cpu_high_threshold=%d)\n", cfg.Observability.CPUHighThreshold)
+			} else {
+				fmt.Println("Observability: disabled")
+			}
 
 			present, _ := r.StatePull()
 			if !present {

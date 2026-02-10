@@ -74,3 +74,48 @@ output "alb_target_group_arn" {
   description = "ARN do Target Group do ALB"
   value       = var.enable_lb ? aws_lb_target_group.app_tg[0].arn : null
 }
+
+# ==========================================================
+# Observability (Opcional)
+# ==========================================================
+
+output "observability_app_dashboard_name" {
+  description = "Nome do dashboard de observabilidade da APP"
+  value       = var.enable_observability ? aws_cloudwatch_dashboard.app[0].dashboard_name : null
+}
+
+output "observability_app_dashboard_url" {
+  description = "URL do dashboard de observabilidade da APP"
+  value       = var.enable_observability ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app[0].dashboard_name}" : null
+}
+
+output "observability_db_dashboard_name" {
+  description = "Nome do dashboard de observabilidade do DB"
+  value       = var.enable_observability && var.enable_db ? aws_cloudwatch_dashboard.db[0].dashboard_name : null
+}
+
+output "observability_db_dashboard_url" {
+  description = "URL do dashboard de observabilidade do DB"
+  value       = var.enable_observability && var.enable_db ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db[0].dashboard_name}" : null
+}
+
+output "observability_alarm_names" {
+  description = "Lista com nomes dos alarmes criados"
+  value = var.enable_observability ? compact([
+    aws_cloudwatch_metric_alarm.app_cpu_high[0].alarm_name,
+    aws_cloudwatch_metric_alarm.app_status_check_failed[0].alarm_name,
+    aws_cloudwatch_metric_alarm.app_unreachable[0].alarm_name,
+    aws_cloudwatch_metric_alarm.app_disk_low_free[0].alarm_name,
+    var.enable_db ? aws_cloudwatch_metric_alarm.db_cpu_high[0].alarm_name : null,
+  ]) : []
+}
+
+output "observability_sns_topic_arn" {
+  description = "ARN do tópico SNS de alertas (quando email for informado)"
+  value       = var.enable_observability && var.alert_email != "" ? aws_sns_topic.alerts[0].arn : null
+}
+
+output "observability_alert_email" {
+  description = "E-mail configurado para receber alertas"
+  value       = var.enable_observability && var.alert_email != "" ? var.alert_email : null
+}

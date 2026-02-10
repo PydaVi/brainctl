@@ -18,10 +18,15 @@ db:
 
 lb:
   enabled: true
-  scheme: public         # public | private
+  scheme: public # public | private
   subnet_ids:
     - subnet-0816bd7998fc3436b
     - subnet-027681aad79f3c2cf
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
+
+observability:
+  enabled: true
+  cpu_high_threshold: 80
+  alert_email: "augustt.fabio@gmail.com"

@@ -103,6 +103,44 @@ variable "lb_allowed_cidr" {
   default     = "0.0.0.0/0"
 }
 
+
+# Auto Scaling da APP (Sprint de resiliência/escala)
+variable "enable_app_asg" {
+  description = "Habilita Auto Scaling Group para a camada de aplicação"
+  type        = bool
+  default     = false
+}
+
+variable "app_asg_subnet_ids" {
+  description = "Subnets onde as instâncias da APP em ASG serão distribuídas"
+  type        = list(string)
+  default     = []
+}
+
+variable "app_asg_min_size" {
+  description = "Quantidade mínima de instâncias no ASG"
+  type        = number
+  default     = 2
+}
+
+variable "app_asg_max_size" {
+  description = "Quantidade máxima de instâncias no ASG"
+  type        = number
+  default     = 4
+}
+
+variable "app_asg_desired_capacity" {
+  description = "Capacidade desejada inicial do ASG"
+  type        = number
+  default     = 2
+}
+
+variable "app_asg_cpu_target" {
+  description = "Target de CPU para política de scaling da APP"
+  type        = number
+  default     = 60
+}
+
 # ----------------------------
 # Observability (Sprint 1)
 # ----------------------------

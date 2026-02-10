@@ -1,20 +1,40 @@
 # ==========================================================
-# APP EC2
+# APP EC2 / ASG
 # ==========================================================
 
 output "instance_id" {
-  description = "ID da instância EC2 da aplicação"
-  value       = aws_instance.app.id
+  description = "ID da instância EC2 da aplicação (quando ASG estiver desabilitado)"
+  value       = var.enable_app_asg ? null : aws_instance.app[0].id
 }
 
 output "private_ip" {
-  description = "Private IP da instância EC2 da aplicação"
-  value       = aws_instance.app.private_ip
+  description = "Private IP da instância EC2 da aplicação (quando ASG estiver desabilitado)"
+  value       = var.enable_app_asg ? null : aws_instance.app[0].private_ip
 }
 
 output "public_ip" {
-  description = "Public IP da instância EC2 da aplicação (se houver)"
-  value       = aws_instance.app.public_ip
+  description = "Public IP da instância EC2 da aplicação (quando ASG estiver desabilitado)"
+  value       = var.enable_app_asg ? null : aws_instance.app[0].public_ip
+}
+
+output "app_asg_name" {
+  description = "Nome do Auto Scaling Group da aplicação"
+  value       = var.enable_app_asg ? aws_autoscaling_group.app[0].name : null
+}
+
+output "app_asg_min_size" {
+  description = "Min size do ASG da aplicação"
+  value       = var.enable_app_asg ? aws_autoscaling_group.app[0].min_size : null
+}
+
+output "app_asg_max_size" {
+  description = "Max size do ASG da aplicação"
+  value       = var.enable_app_asg ? aws_autoscaling_group.app[0].max_size : null
+}
+
+output "app_asg_desired_capacity" {
+  description = "Desired capacity do ASG da aplicação"
+  value       = var.enable_app_asg ? aws_autoscaling_group.app[0].desired_capacity : null
 }
 
 output "security_group_id" {
@@ -81,12 +101,12 @@ output "alb_target_group_arn" {
 
 output "observability_app_dashboard_name" {
   description = "Nome do dashboard de observabilidade da APP"
-  value       = var.enable_observability ? aws_cloudwatch_dashboard.app[0].dashboard_name : null
+  value       = var.enable_observability ? (var.enable_app_asg ? aws_cloudwatch_dashboard.app_asg[0].dashboard_name : aws_cloudwatch_dashboard.app[0].dashboard_name) : null
 }
 
 output "observability_app_dashboard_url" {
   description = "URL do dashboard de observabilidade da APP"
-  value       = var.enable_observability ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app[0].dashboard_name}" : null
+  value       = var.enable_observability ? (var.enable_app_asg ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app_asg[0].dashboard_name}" : "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app[0].dashboard_name}") : null
 }
 
 output "observability_db_dashboard_name" {
@@ -102,10 +122,10 @@ output "observability_db_dashboard_url" {
 output "observability_alarm_names" {
   description = "Lista com nomes dos alarmes criados"
   value = var.enable_observability ? compact([
-    aws_cloudwatch_metric_alarm.app_cpu_high[0].alarm_name,
-    aws_cloudwatch_metric_alarm.app_status_check_failed[0].alarm_name,
-    aws_cloudwatch_metric_alarm.app_unreachable[0].alarm_name,
-    aws_cloudwatch_metric_alarm.app_disk_low_free[0].alarm_name,
+    var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_cpu_high[0].alarm_name : aws_cloudwatch_metric_alarm.app_cpu_high[0].alarm_name,
+    var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_inservice_low[0].alarm_name : aws_cloudwatch_metric_alarm.app_status_check_failed[0].alarm_name,
+    var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_unhealthy_hosts[0].alarm_name : null) : aws_cloudwatch_metric_alarm.app_unreachable[0].alarm_name,
+    var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_5xx_high[0].alarm_name : null) : aws_cloudwatch_metric_alarm.app_disk_low_free[0].alarm_name,
     var.enable_db ? aws_cloudwatch_metric_alarm.db_cpu_high[0].alarm_name : null,
   ]) : []
 }

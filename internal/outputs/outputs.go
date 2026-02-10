@@ -29,9 +29,14 @@ func PrintPrettyStatus(v map[string]any) {
 	fmt.Println("Resources:")
 
 	fmt.Println("  APP")
-	fmt.Printf("    instance_id: %s\n", asString(v["instance_id"], "(none)"))
-	fmt.Printf("    private_ip : %s\n", asString(v["private_ip"], "(none)"))
-	fmt.Printf("    public_ip  : %s\n", asString(v["public_ip"], "(none)"))
+	if asgName := asString(v["app_asg_name"], ""); asgName != "" {
+		fmt.Printf("    asg_name   : %s\n", asgName)
+		fmt.Printf("    asg_size   : min=%s desired=%s max=%s\n", asString(v["app_asg_min_size"], "?"), asString(v["app_asg_desired_capacity"], "?"), asString(v["app_asg_max_size"], "?"))
+	} else {
+		fmt.Printf("    instance_id: %s\n", asString(v["instance_id"], "(none)"))
+		fmt.Printf("    private_ip : %s\n", asString(v["private_ip"], "(none)"))
+		fmt.Printf("    public_ip  : %s\n", asString(v["public_ip"], "(none)"))
+	}
 	fmt.Printf("    sg         : %s (%s)\n", asString(v["security_group_name"], "(none)"), asString(v["security_group_id"], "(none)"))
 	fmt.Println()
 

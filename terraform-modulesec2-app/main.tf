@@ -210,9 +210,10 @@ resource "aws_security_group" "app_sg" {
 }
 
 resource "aws_instance" "app" {
+  count         = var.enable_app_asg ? 0 : 1
   ami           = data.aws_ami.windows_2022.id
   instance_type = var.instance_type
-  subnet_id     = var.subnet_id
+  subnet_id     = var.enable_app_asg ? null : var.subnet_id
 
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
@@ -365,14 +366,97 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_target_group_attachment" "app_attach" {
-  count            = var.enable_lb ? 1 : 0
+  count            = var.enable_lb && !var.enable_app_asg ? 1 : 0
   target_group_arn = aws_lb_target_group.app_tg[0].arn
-  target_id        = aws_instance.app.id
+  target_id        = aws_instance.app[0].id
   port             = var.app_port
 }
 
+resource "aws_launch_template" "app" {
+  count = var.enable_app_asg ? 1 : 0
+
+  name_prefix   = "${var.name}-${var.environment}-lt-"
+  image_id      = data.aws_ami.windows_2022.id
+  instance_type = var.instance_type
+
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+
+  iam_instance_profile {
+    name = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
+  }
+
+  user_data = var.enable_observability ? base64encode(local.cw_user_data_app) : null
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "${var.name}-${var.environment}"
+      Environment = var.environment
+      ManagedBy   = "brainctl"
+      Role        = "app"
+    }
+  }
+}
+
+resource "aws_autoscaling_group" "app" {
+  count = var.enable_app_asg ? 1 : 0
+
+  name                      = "${var.name}-${var.environment}-asg"
+  min_size                  = var.app_asg_min_size
+  max_size                  = var.app_asg_max_size
+  desired_capacity          = var.app_asg_desired_capacity
+  health_check_type         = var.enable_lb ? "ELB" : "EC2"
+  health_check_grace_period = 300
+  vpc_zone_identifier       = var.app_asg_subnet_ids
+  target_group_arns         = var.enable_lb ? [aws_lb_target_group.app_tg[0].arn] : []
+
+  launch_template {
+    id      = aws_launch_template.app[0].id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.name}-${var.environment}"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = var.environment
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "ManagedBy"
+    value               = "brainctl"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Role"
+    value               = "app"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "app_cpu_target" {
+  count = var.enable_app_asg ? 1 : 0
+
+  name                   = "${var.name}-${var.environment}-asg-cpu-target"
+  autoscaling_group_name = aws_autoscaling_group.app[0].name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = var.app_asg_cpu_target
+  }
+}
+
 resource "aws_cloudwatch_dashboard" "app" {
-  count          = var.enable_observability ? 1 : 0
+  count          = var.enable_observability && !var.enable_app_asg ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
@@ -389,7 +473,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.app.id]]
+          metrics = [["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.app[0].id]]
         }
       },
       {
@@ -404,7 +488,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           region  = var.region
           stat    = "Maximum"
           period  = 60
-          metrics = [["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.app.id]]
+          metrics = [["AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.app[0].id]]
         }
       },
       {
@@ -419,7 +503,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "Memory % Committed Bytes In Use", "InstanceId", aws_instance.app.id, "objectname", "Memory"]]
+          metrics = [["CWAgent", "Memory % Committed Bytes In Use", "InstanceId", aws_instance.app[0].id, "objectname", "Memory"]]
         }
       },
       {
@@ -434,7 +518,81 @@ resource "aws_cloudwatch_dashboard" "app" {
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "LogicalDisk % Free Space", "InstanceId", aws_instance.app.id, "objectname", "LogicalDisk", "instance", "C:"]]
+          metrics = [["CWAgent", "LogicalDisk % Free Space", "InstanceId", aws_instance.app[0].id, "objectname", "LogicalDisk", "instance", "C:"]]
+        }
+      }
+    ]
+  })
+}
+
+
+resource "aws_cloudwatch_dashboard" "app_asg" {
+  count          = var.enable_observability && var.enable_app_asg ? 1 : 0
+  dashboard_name = "brainctl-${var.name}-${var.environment}-app"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP ASG Average CPU"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [["AWS/AutoScaling", "GroupAverageCPUUtilization", "AutoScalingGroupName", aws_autoscaling_group.app[0].name]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP InService vs Desired"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [
+            ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", aws_autoscaling_group.app[0].name],
+            ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", aws_autoscaling_group.app[0].name]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP TG UnHealthyHostCount"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Maximum"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", aws_lb.app_alb[0].arn_suffix, "TargetGroup", aws_lb_target_group.app_tg[0].arn_suffix]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP TG 5XX"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", aws_lb.app_alb[0].arn_suffix, "TargetGroup", aws_lb_target_group.app_tg[0].arn_suffix]]
         }
       }
     ]
@@ -512,7 +670,7 @@ resource "aws_cloudwatch_dashboard" "db" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_cpu_high" {
-  count               = var.enable_observability ? 1 : 0
+  count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
   alarm_name          = "brainctl-${var.name}-${var.environment}-app-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -525,12 +683,12 @@ resource "aws_cloudwatch_metric_alarm" "app_cpu_high" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
   dimensions = {
-    InstanceId = aws_instance.app.id
+    InstanceId = aws_instance.app[0].id
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_status_check_failed" {
-  count               = var.enable_observability ? 1 : 0
+  count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
   alarm_name          = "brainctl-${var.name}-${var.environment}-app-status-check-failed"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = 2
@@ -543,12 +701,12 @@ resource "aws_cloudwatch_metric_alarm" "app_status_check_failed" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
   dimensions = {
-    InstanceId = aws_instance.app.id
+    InstanceId = aws_instance.app[0].id
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_unreachable" {
-  count               = var.enable_observability ? 1 : 0
+  count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
   alarm_name          = "brainctl-${var.name}-${var.environment}-app-unreachable"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = 2
@@ -561,12 +719,12 @@ resource "aws_cloudwatch_metric_alarm" "app_unreachable" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
   dimensions = {
-    InstanceId = aws_instance.app.id
+    InstanceId = aws_instance.app[0].id
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
-  count               = var.enable_observability ? 1 : 0
+  count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
   alarm_name          = "brainctl-${var.name}-${var.environment}-app-disk-low-free"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
@@ -579,9 +737,84 @@ resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
   dimensions = {
-    InstanceId = aws_instance.app.id
+    InstanceId = aws_instance.app[0].id
     objectname = "LogicalDisk"
     instance   = "C:"
+  }
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "app_asg_cpu_high" {
+  count               = var.enable_observability && var.enable_app_asg ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-asg-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "GroupAverageCPUUtilization"
+  namespace           = "AWS/AutoScaling"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.cpu_high_threshold
+  alarm_description   = "CPU média alta no ASG da APP"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app[0].name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "app_asg_inservice_low" {
+  count               = var.enable_observability && var.enable_app_asg ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-asg-inservice-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "GroupInServiceInstances"
+  namespace           = "AWS/AutoScaling"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.app_asg_min_size
+  alarm_description   = "InServiceInstances abaixo do mínimo esperado no ASG da APP"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app[0].name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "app_tg_unhealthy_hosts" {
+  count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-unhealthy-hosts"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_description   = "Target group da APP com hosts unhealthy"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+  dimensions = {
+    LoadBalancer = aws_lb.app_alb[0].arn_suffix
+    TargetGroup  = aws_lb_target_group.app_tg[0].arn_suffix
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "app_tg_5xx_high" {
+  count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-5xx-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 5
+  alarm_description   = "Target group da APP com aumento de erros 5XX"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+  dimensions = {
+    LoadBalancer = aws_lb.app_alb[0].arn_suffix
+    TargetGroup  = aws_lb_target_group.app_tg[0].arn_suffix
   }
 }
 

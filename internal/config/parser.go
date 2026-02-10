@@ -8,6 +8,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// AppConfig representa o contrato declarativo consumido pelo brainctl.
+// A ideia é manter o YAML simples para o usuário, enquanto a lógica de
+// orquestração é aplicada pelo Go + módulos Terraform.
 type AppConfig struct {
 	App struct {
 		Name        string `yaml:"name"`
@@ -16,8 +19,9 @@ type AppConfig struct {
 	} `yaml:"app"`
 
 	Infrastructure struct {
-		VpcID    string `yaml:"vpc_id"`
-		SubnetID string `yaml:"subnet_id"`
+		VpcID     string   `yaml:"vpc_id"`
+		SubnetID  string   `yaml:"subnet_id"`
+		SubnetIDs []string `yaml:"subnet_ids"`
 	} `yaml:"infrastructure"`
 
 	EC2 struct {
@@ -28,6 +32,7 @@ type AppConfig struct {
 
 	DB            DBConfig            `yaml:"db"`
 	LB            LBConfig            `yaml:"lb"`
+	AppScaling    AppScalingConfig    `yaml:"app_scaling"`
 	Observability ObservabilityConfig `yaml:"observability"`
 }
 
@@ -48,6 +53,15 @@ type LBConfig struct {
 	ListenerPort int      `yaml:"listener_port"`
 	TargetPort   int      `yaml:"target_port"`
 	AllowedCIDR  string   `yaml:"allowed_cidr"`
+}
+
+type AppScalingConfig struct {
+	Enabled         bool     `yaml:"enabled"`
+	SubnetIDs       []string `yaml:"subnet_ids"`
+	MinSize         int      `yaml:"min_size"`
+	MaxSize         int      `yaml:"max_size"`
+	DesiredCapacity int      `yaml:"desired_capacity"`
+	CPUTarget       float64  `yaml:"cpu_target"`
 }
 
 // ObservabilityConfig controla dashboards, alarmes e SNS.
@@ -115,7 +129,7 @@ func (c *AppConfig) Validate() error {
 			c.LB.ListenerPort = 80
 		}
 		if c.LB.ListenerPort != 80 && c.LB.ListenerPort != 443 {
-			return fmt.Errorf("lb.listener_port must be 80 or 443 (for now)")
+			return fmt.Errorf("lb.listener_port must be 80 or 443")
 		}
 		if c.LB.TargetPort == 0 {
 			c.LB.TargetPort = 80
@@ -125,6 +139,40 @@ func (c *AppConfig) Validate() error {
 		}
 		if len(c.LB.SubnetIDs) < 2 {
 			return fmt.Errorf("lb.subnet_ids must have at least 2 subnets")
+		}
+	}
+
+	if c.AppScaling.Enabled {
+		if !c.LB.Enabled {
+			return fmt.Errorf("app_scaling.enabled requires lb.enabled=true")
+		}
+		if len(c.AppScaling.SubnetIDs) == 0 {
+			if len(c.Infrastructure.SubnetIDs) >= 2 {
+				c.AppScaling.SubnetIDs = c.Infrastructure.SubnetIDs
+			} else {
+				c.AppScaling.SubnetIDs = c.LB.SubnetIDs
+			}
+		}
+		if len(c.AppScaling.SubnetIDs) < 2 {
+			return fmt.Errorf("app_scaling.subnet_ids must have at least 2 subnets for multi-AZ")
+		}
+		if c.AppScaling.MinSize == 0 {
+			c.AppScaling.MinSize = 2
+		}
+		if c.AppScaling.MaxSize == 0 {
+			c.AppScaling.MaxSize = 4
+		}
+		if c.AppScaling.DesiredCapacity == 0 {
+			c.AppScaling.DesiredCapacity = c.AppScaling.MinSize
+		}
+		if c.AppScaling.CPUTarget == 0 {
+			c.AppScaling.CPUTarget = 60
+		}
+		if c.AppScaling.MinSize > c.AppScaling.MaxSize {
+			return fmt.Errorf("app_scaling.min_size must be <= app_scaling.max_size")
+		}
+		if c.AppScaling.DesiredCapacity < c.AppScaling.MinSize || c.AppScaling.DesiredCapacity > c.AppScaling.MaxSize {
+			return fmt.Errorf("app_scaling.desired_capacity must be between min_size and max_size")
 		}
 	}
 
@@ -138,10 +186,8 @@ func (c *AppConfig) Validate() error {
 	if c.Observability.CPUHighThreshold < 1 || c.Observability.CPUHighThreshold > 100 {
 		return fmt.Errorf("observability.cpu_high_threshold must be between 1 and 100")
 	}
-	if c.Observability.AlertEmail != "" {
-		if !strings.Contains(c.Observability.AlertEmail, "@") {
-			return fmt.Errorf("observability.alert_email must be a valid email")
-		}
+	if c.Observability.AlertEmail != "" && !strings.Contains(c.Observability.AlertEmail, "@") {
+		return fmt.Errorf("observability.alert_email must be a valid email")
 	}
 
 	return nil

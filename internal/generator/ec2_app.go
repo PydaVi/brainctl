@@ -54,6 +54,13 @@ module "app" {
   app_port         = {{ .LB.TargetPort }}
   lb_allowed_cidr  = "{{ .LB.AllowedCIDR }}"
 
+  enable_app_asg         = {{ .AppScaling.Enabled }}
+  app_asg_subnet_ids     = [{{- range $i, $s := .AppScaling.SubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
+  app_asg_min_size       = {{ .AppScaling.MinSize }}
+  app_asg_max_size       = {{ .AppScaling.MaxSize }}
+  app_asg_desired_capacity = {{ .AppScaling.DesiredCapacity }}
+  app_asg_cpu_target     = {{ .AppScaling.CPUTarget }}
+
   enable_observability = {{ .ObservabilityEnabled }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
@@ -75,6 +82,26 @@ output "private_ip" {
 output "public_ip" {
   value       = module.app.public_ip
   description = "EC2 public ip"
+}
+
+output "app_asg_name" {
+  value       = module.app.app_asg_name
+  description = "App ASG name"
+}
+
+output "app_asg_min_size" {
+  value       = module.app.app_asg_min_size
+  description = "App ASG min size"
+}
+
+output "app_asg_max_size" {
+  value       = module.app.app_asg_max_size
+  description = "App ASG max size"
+}
+
+output "app_asg_desired_capacity" {
+  value       = module.app.app_asg_desired_capacity
+  description = "App ASG desired capacity"
 }
 
 output "security_group_id" {

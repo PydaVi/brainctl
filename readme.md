@@ -2,8 +2,6 @@
 
 `brainctl` é uma CLI em Go para provisionar workloads padronizados na AWS com base em YAML declarativo.
 
-> MVP atual: foco em provisionamento base, observabilidade e escala da camada APP com Auto Scaling Group.
-
 ## Arquitetura de diretórios (preparada para crescer)
 
 Mesmo usando uma única stack por enquanto, a estrutura recomendada já separa por ambiente:

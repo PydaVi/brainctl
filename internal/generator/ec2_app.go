@@ -73,6 +73,13 @@ module "app" {
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
 
+  enable_recovery_mode         = {{ .Recovery.Enabled }}
+  recovery_snapshot_time_utc   = "{{ .Recovery.SnapshotTimeUTC }}"
+  recovery_retention_days      = {{ .Recovery.RetentionDays }}
+  recovery_backup_app          = {{ .RecoveryBackupApp }}
+  recovery_backup_db           = {{ .RecoveryBackupDB }}
+  recovery_enable_runbooks     = {{ .RecoveryEnableRunbooks }}
+
   app_extra_ingress_rules = [{{ .AppExtraIngressHCL }}]
   db_extra_ingress_rules  = [{{ .DBExtraIngressHCL }}]
   alb_extra_ingress_rules = [{{ .ALBExtraIngressHCL }}]
@@ -195,17 +202,55 @@ output "observability_alert_email" {
   value       = module.app.observability_alert_email
   description = "Configured alert email"
 }
+
+output "recovery_enabled" {
+  value       = module.app.recovery_enabled
+  description = "Recovery mode enabled"
+}
+
+output "recovery_snapshot_time_utc" {
+  value       = module.app.recovery_snapshot_time_utc
+  description = "Daily snapshot time (UTC)"
+}
+
+output "recovery_retention_days" {
+  value       = module.app.recovery_retention_days
+  description = "Recovery retention in days"
+}
+
+output "recovery_app_policy_id" {
+  value       = module.app.recovery_app_policy_id
+  description = "DLM policy id for APP snapshots"
+}
+
+output "recovery_db_policy_id" {
+  value       = module.app.recovery_db_policy_id
+  description = "DLM policy id for DB snapshots"
+}
+
+output "recovery_app_runbook_name" {
+  value       = module.app.recovery_app_runbook_name
+  description = "Automation runbook name for APP recovery"
+}
+
+output "recovery_db_runbook_name" {
+  value       = module.app.recovery_db_runbook_name
+  description = "Automation runbook name for DB recovery"
+}
 `
 
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled bool
-	AppUserDataB64       string
-	DBUserDataB64        string
-	AppExtraIngressHCL   string
-	DBExtraIngressHCL    string
-	ALBExtraIngressHCL   string
+	ObservabilityEnabled   bool
+	RecoveryBackupApp      bool
+	RecoveryBackupDB       bool
+	RecoveryEnableRunbooks bool
+	AppUserDataB64         string
+	DBUserDataB64          string
+	AppExtraIngressHCL     string
+	DBExtraIngressHCL      string
+	ALBExtraIngressHCL     string
 }
 
 // GenerateEC2App monta workspace Terraform completo para a aplicação.
@@ -235,13 +280,16 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:            cfg,
-		ObservabilityEnabled: cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		AppUserDataB64:       encodeBase64(cfg.EC2.UserData),
-		DBUserDataB64:        encodeBase64(cfg.DB.UserData),
-		AppExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:    buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:              cfg,
+		ObservabilityEnabled:   cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		RecoveryBackupApp:      cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:       cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks: cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		AppUserDataB64:         encodeBase64(cfg.EC2.UserData),
+		DBUserDataB64:          encodeBase64(cfg.DB.UserData),
+		AppExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:      buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
 	if err := tpl.Execute(f, data); err != nil {
 		return fmt.Errorf("render template: %w", err)

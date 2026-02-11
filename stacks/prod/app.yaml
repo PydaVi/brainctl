@@ -1,6 +1,6 @@
 app:
-  name: corinthians
-  environment: prod
+  name: brain-test
+  environment: dev
   region: us-east-1
 
 infrastructure:
@@ -13,12 +13,31 @@ infrastructure:
 ec2:
   instance_type: t3.micro
   os: windows-2022
+  ami: ""
+  user_data_mode: merge
+  user_data: |
+    <powershell>
+      $ErrorActionPreference = "Stop"
+      Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+      New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
+      @"
+    <html>
+      <body>
+        <h1>hello world from brainctl</h1>
+      </body>
+    </html>
+    "@ | Set-Content -Path "C:\inetpub\wwwroot\index.html" -Encoding UTF8
+      Restart-Service W3SVC
+    </powershell>
   imds_v2_required: false
 
 db:
   enabled: true
   instance_type: t3.micro
   port: 1433
+  ami: ""
+  user_data_mode: default
+  user_data: ""
 
 lb:
   enabled: true
@@ -43,4 +62,13 @@ app_scaling:
 observability:
   enabled: true
   cpu_high_threshold: 80
-  alert_email: "augustt.fabio@gmail.com"
+  alert_email: "seu-email@empresa.com"
+
+
+recovery:
+  enabled: true
+  snapshot_time_utc: "03:00"
+  retention_days: 7
+  backup_app: true
+  backup_db: true
+  enable_runbooks: true

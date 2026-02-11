@@ -156,6 +156,15 @@ func main() {
 				fmt.Printf("Overrides: app_extra_ingress_rules=%d db_extra_ingress_rules=%d alb_extra_ingress_rules=%d\n",
 					len(cfg.RuntimeOverrides.AppExtraIngress), len(cfg.RuntimeOverrides.DBExtraIngress), len(cfg.RuntimeOverrides.ALBExtraIngress))
 			}
+			if cfg.Recovery.Enabled {
+				fmt.Printf("Recovery: enabled (time_utc=%s retention_days=%d backup_app=%t backup_db=%t runbooks=%t)\n",
+					cfg.Recovery.SnapshotTimeUTC, cfg.Recovery.RetentionDays,
+					cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+					cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+					cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks)
+			} else {
+				fmt.Println("Recovery: disabled")
+			}
 
 			present, _ := r.StatePull()
 			if !present {

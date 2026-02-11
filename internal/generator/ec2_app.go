@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/fs"
@@ -39,13 +40,19 @@ module "app" {
   vpc_id    = "{{ .Infrastructure.VpcID }}"
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
-  instance_type    = "{{ .EC2.InstanceType }}"
-  imds_v2_required = {{ .EC2.IMDSv2Required }}
-  allowed_rdp_cidr = "0.0.0.0/0"
+  instance_type       = "{{ .EC2.InstanceType }}"
+  app_ami_id          = "{{ .EC2.AMI }}"
+  app_user_data_mode  = "{{ .EC2.UserDataMode }}"
+  app_user_data_base64 = "{{ .AppUserDataB64 }}"
+  imds_v2_required    = {{ .EC2.IMDSv2Required }}
+  allowed_rdp_cidr    = "0.0.0.0/0"
 
-  enable_db        = {{ .DB.Enabled }}
-  db_instance_type = "{{ .DB.InstanceType }}"
-  db_port          = {{ .DB.Port }}
+  enable_db           = {{ .DB.Enabled }}
+  db_instance_type    = "{{ .DB.InstanceType }}"
+  db_ami_id           = "{{ .DB.AMI }}"
+  db_user_data_mode   = "{{ .DB.UserDataMode }}"
+  db_user_data_base64 = "{{ .DBUserDataB64 }}"
+  db_port             = {{ .DB.Port }}
 
   enable_lb        = {{ .LB.Enabled }}
   lb_scheme        = "{{ .LB.Scheme }}"
@@ -194,6 +201,8 @@ output "observability_alert_email" {
 type renderData struct {
 	*config.AppConfig
 	ObservabilityEnabled bool
+	AppUserDataB64       string
+	DBUserDataB64        string
 	AppExtraIngressHCL   string
 	DBExtraIngressHCL    string
 	ALBExtraIngressHCL   string
@@ -228,6 +237,8 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 	data := renderData{
 		AppConfig:            cfg,
 		ObservabilityEnabled: cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		AppUserDataB64:       encodeBase64(cfg.EC2.UserData),
+		DBUserDataB64:        encodeBase64(cfg.DB.UserData),
 		AppExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
 		DBExtraIngressHCL:    buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
 		ALBExtraIngressHCL:   buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
@@ -257,6 +268,13 @@ func buildIngressRulesHCL(rules []config.IngressRule) string {
 		parts = append(parts, fmt.Sprintf("{ description = %q, from_port = %d, to_port = %d, protocol = %q, cidr_blocks = [%s] }", r.Description, r.FromPort, r.ToPort, r.Protocol, strings.Join(cidrs, ", ")))
 	}
 	return strings.Join(parts, ", ")
+}
+
+func encodeBase64(v string) string {
+	if v == "" {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString([]byte(v))
 }
 
 // findRepoRoot sobe diretórios até localizar go.mod.

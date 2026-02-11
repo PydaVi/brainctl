@@ -57,6 +57,30 @@ variable "app_extra_ingress_rules" {
   default = []
 }
 
+
+variable "app_ami_id" {
+  description = "AMI custom para APP (opcional). Quando vazio, usa Windows Server 2022 padrão"
+  type        = string
+  default     = ""
+}
+
+variable "app_user_data_mode" {
+  description = "Modo de user data da APP: default|custom|merge"
+  type        = string
+  default     = "default"
+
+  validation {
+    condition     = contains(["default", "custom", "merge"], var.app_user_data_mode)
+    error_message = "app_user_data_mode must be one of: default, custom, merge"
+  }
+}
+
+variable "app_user_data_base64" {
+  description = "User data custom da APP em base64 (opcional)"
+  type        = string
+  default     = ""
+}
+
 variable "instance_type" {
   description = "Tipo da instância da aplicação (ex: t3.micro)"
   type        = string
@@ -81,6 +105,30 @@ variable "db_extra_ingress_rules" {
     cidr_blocks = list(string)
   }))
   default = []
+}
+
+
+variable "db_ami_id" {
+  description = "AMI custom para DB (opcional). Quando vazio, usa Windows Server 2022 padrão"
+  type        = string
+  default     = ""
+}
+
+variable "db_user_data_mode" {
+  description = "Modo de user data da DB: default|custom|merge"
+  type        = string
+  default     = "default"
+
+  validation {
+    condition     = contains(["default", "custom", "merge"], var.db_user_data_mode)
+    error_message = "db_user_data_mode must be one of: default, custom, merge"
+  }
+}
+
+variable "db_user_data_base64" {
+  description = "User data custom da DB em base64 (opcional)"
+  type        = string
+  default     = ""
 }
 
 variable "db_instance_type" {

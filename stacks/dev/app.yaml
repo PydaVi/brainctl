@@ -13,16 +13,38 @@ infrastructure:
 ec2:
   instance_type: t3.micro
   os: windows-2022
+  ami: ""
+  user_data_mode: custom
+  user_data: |
+    <powershell>
+      $ErrorActionPreference = "Stop"
+
+      Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+
+      $html = "<html><body><h1>hello world from brainctl</h1></body></html>"
+      Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $html -Encoding UTF8
+
+      # Garante serviço do IIS ativo
+      Set-Service -Name W3SVC -StartupType Automatic
+      Start-Service -Name W3SVC
+
+      # Log simples para debug
+      "IIS bootstrap OK - $(Get-Date -Format o)" | Out-File "C:\bootstrap-iis.log" -Encoding utf8 -Append
+    </powershell>
+
   imds_v2_required: false
 
 db:
   enabled: true
   instance_type: t3.micro
   port: 1433
+  ami: ""
+  user_data_mode: default
+  user_data: ""
 
 lb:
   enabled: true
-  scheme: private
+  scheme: public
   subnet_ids:
     - subnet-0816bd7998fc3436b
     - subnet-054b5772b4e01ad14
@@ -34,7 +56,7 @@ app_scaling:
   enabled: false
   subnet_ids:
     - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-027681aad79f3c2cf
   min_size: 2
   max_size: 4
   desired_capacity: 2
@@ -43,4 +65,4 @@ app_scaling:
 observability:
   enabled: true
   cpu_high_threshold: 80
-  alert_email: "augustt.fabio@gmail.com"
+  alert_email: "seu-email@empresa.com"

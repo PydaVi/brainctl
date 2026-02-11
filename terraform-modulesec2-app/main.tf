@@ -18,6 +18,22 @@ locals {
   app_instance_label = "${var.name}-${var.environment}-app"
   db_instance_label  = "${var.name}-${var.environment}-db"
 
+  resolved_app_ami = var.app_ami_id != "" ? var.app_ami_id : data.aws_ami.windows_2022.id
+  resolved_db_ami  = var.db_ami_id != "" ? var.db_ami_id : data.aws_ami.windows_2022.id
+
+  app_custom_user_data = var.app_user_data_base64 != "" ? base64decode(var.app_user_data_base64) : ""
+  db_custom_user_data  = var.db_user_data_base64 != "" ? base64decode(var.db_user_data_base64) : ""
+
+  app_default_user_data = var.enable_observability ? local.cw_user_data_app : ""
+  db_default_user_data  = var.enable_observability ? local.cw_user_data_db : ""
+
+  app_effective_user_data = var.app_user_data_mode == "default" ? local.app_default_user_data : (
+    var.app_user_data_mode == "custom" ? local.app_custom_user_data : trimspace(join("\n", compact([local.app_default_user_data, local.app_custom_user_data])))
+  )
+  db_effective_user_data = var.db_user_data_mode == "default" ? local.db_default_user_data : (
+    var.db_user_data_mode == "custom" ? local.db_custom_user_data : trimspace(join("\n", compact([local.db_default_user_data, local.db_custom_user_data])))
+  )
+
   sns_enabled   = var.enable_observability && var.alert_email != ""
   alarm_actions = local.sns_enabled ? [aws_sns_topic.alerts[0].arn] : []
 
@@ -222,7 +238,7 @@ resource "aws_security_group" "app_sg" {
 
 resource "aws_instance" "app" {
   count         = var.enable_app_asg ? 0 : 1
-  ami           = data.aws_ami.windows_2022.id
+  ami           = local.resolved_app_ami
   instance_type = var.instance_type
   subnet_id     = var.enable_app_asg ? null : var.subnet_id
 
@@ -234,7 +250,7 @@ resource "aws_instance" "app" {
   }
 
   iam_instance_profile = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
-  user_data            = var.enable_observability ? local.cw_user_data_app : null
+  user_data            = local.app_effective_user_data != "" ? local.app_effective_user_data : null
 
   tags = {
     Name        = "${var.name}-${var.environment}"
@@ -285,14 +301,14 @@ resource "aws_security_group" "db_sg" {
 
 resource "aws_instance" "db" {
   count         = var.enable_db ? 1 : 0
-  ami           = data.aws_ami.windows_2022.id
+  ami           = local.resolved_db_ami
   instance_type = var.db_instance_type
   subnet_id     = var.subnet_id
 
   vpc_security_group_ids = [aws_security_group.db_sg[0].id]
 
   iam_instance_profile = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
-  user_data            = var.enable_observability ? local.cw_user_data_db : null
+  user_data            = local.db_effective_user_data != "" ? local.db_effective_user_data : null
 
   tags = {
     Name        = "${var.name}-${var.environment}-db"
@@ -414,7 +430,7 @@ resource "aws_launch_template" "app" {
   count = var.enable_app_asg ? 1 : 0
 
   name_prefix   = "${var.name}-${var.environment}-lt-"
-  image_id      = data.aws_ami.windows_2022.id
+  image_id      = local.resolved_app_ami
   instance_type = var.instance_type
 
   vpc_security_group_ids = [aws_security_group.app_sg.id]
@@ -423,7 +439,7 @@ resource "aws_launch_template" "app" {
     name = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
   }
 
-  user_data = var.enable_observability ? base64encode(local.cw_user_data_app) : null
+  user_data = local.app_effective_user_data != "" ? base64encode(local.app_effective_user_data) : null
 
   metadata_options {
     http_endpoint = "enabled"

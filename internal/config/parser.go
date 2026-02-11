@@ -28,6 +28,8 @@ type AppConfig struct {
 		InstanceType   string `yaml:"instance_type"`
 		OS             string `yaml:"os"`
 		AMI            string `yaml:"ami"`
+		UserData       string `yaml:"user_data"`
+		UserDataMode   string `yaml:"user_data_mode"`
 		IMDSv2Required bool   `yaml:"imds_v2_required"`
 	} `yaml:"ec2"`
 
@@ -47,6 +49,8 @@ type DBConfig struct {
 	Port         int    `yaml:"port"`
 	OS           string `yaml:"os"`
 	AMI          string `yaml:"ami"`
+	UserData     string `yaml:"user_data"`
+	UserDataMode string `yaml:"user_data_mode"`
 }
 
 // LBConfig define parâmetros de load balancer.
@@ -184,6 +188,10 @@ func parseAppendIngressRule(o OverrideOp, path string) (IngressRule, error) {
 	return r, nil
 }
 
+func validateUserDataMode(mode string) bool {
+	return mode == "default" || mode == "custom" || mode == "merge"
+}
+
 // Validate aplica regras e defaults do contrato declarativo.
 func (c *AppConfig) Validate() error {
 	if c.App.Name == "" {
@@ -205,6 +213,25 @@ func (c *AppConfig) Validate() error {
 
 	if c.EC2.InstanceType == "" {
 		return fmt.Errorf("ec2.instance_type is required")
+	}
+	if c.EC2.UserDataMode == "" {
+		c.EC2.UserDataMode = "default"
+	}
+	if !validateUserDataMode(c.EC2.UserDataMode) {
+		return fmt.Errorf("ec2.user_data_mode must be one of: default, custom, merge")
+	}
+	if c.EC2.UserDataMode == "custom" && strings.TrimSpace(c.EC2.UserData) == "" {
+		return fmt.Errorf("ec2.user_data is required when ec2.user_data_mode=custom")
+	}
+
+	if c.DB.UserDataMode == "" {
+		c.DB.UserDataMode = "default"
+	}
+	if !validateUserDataMode(c.DB.UserDataMode) {
+		return fmt.Errorf("db.user_data_mode must be one of: default, custom, merge")
+	}
+	if c.DB.UserDataMode == "custom" && strings.TrimSpace(c.DB.UserData) == "" {
+		return fmt.Errorf("db.user_data is required when db.user_data_mode=custom")
 	}
 
 	if c.DB.Enabled {

@@ -1018,7 +1018,7 @@ resource "aws_dlm_lifecycle_policy" "db_daily" {
       BackupScope = "db"
     }
 
-    schedules {
+    schedule {
       name = "daily-db-snapshots"
 
       create_rule {

@@ -1,4 +1,4 @@
-$p = @'
+$pageHtml = @'
 <!doctype html>
 <html lang="pt-BR">
   <head>
@@ -81,5 +81,5 @@ $p = @'
 $ErrorActionPreference = "Stop"
 Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
-Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $p -Encoding UTF8
+Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $pageHtml -Encoding UTF8
 Restart-Service W3SVC

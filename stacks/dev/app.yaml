@@ -1,3 +1,6 @@
+workload:
+  type: ec2-app
+
 app:
   name: brain-test
   environment: dev
@@ -14,25 +17,22 @@ ec2:
   instance_type: t3.micro
   os: windows-2022
   ami: ""
-  user_data_mode: custom
+  user_data_mode: merge
   user_data: |
     <powershell>
       $ErrorActionPreference = "Stop"
-
       Install-WindowsFeature -Name Web-Server -IncludeManagementTools
-
-      $html = "<html><body><h1>hello world from brainctl</h1></body></html>"
-      Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $html -Encoding UTF8
-
-      # Garante serviço do IIS ativo
-      Set-Service -Name W3SVC -StartupType Automatic
-      Start-Service -Name W3SVC
-
-      # Log simples para debug
-      "IIS bootstrap OK - $(Get-Date -Format o)" | Out-File "C:\bootstrap-iis.log" -Encoding utf8 -Append
+      New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
+      @"
+    <html>
+      <body>
+        <h1>hello world from brainctl</h1>
+      </body>
+    </html>
+    "@ | Set-Content -Path "C:\inetpub\wwwroot\index.html" -Encoding UTF8
+      Restart-Service W3SVC
     </powershell>
-
-  imds_v2_required: false
+  imds_v2_required: true
 
 db:
   enabled: true
@@ -53,10 +53,10 @@ lb:
   allowed_cidr: 0.0.0.0/0
 
 app_scaling:
-  enabled: false
+  enabled: true
   subnet_ids:
     - subnet-0816bd7998fc3436b
-    - subnet-027681aad79f3c2cf
+    - subnet-054b5772b4e01ad14
   min_size: 2
   max_size: 4
   desired_capacity: 2
@@ -65,4 +65,13 @@ app_scaling:
 observability:
   enabled: true
   cpu_high_threshold: 80
-  alert_email: "seu-email@empresa.com"
+  alert_email: "augustt.fabio@gmail.com"
+
+
+recovery:
+  enabled: true
+  snapshot_time_utc: "03:00"
+  retention_days: 7
+  backup_app: true
+  backup_db: true
+  enable_runbooks: true

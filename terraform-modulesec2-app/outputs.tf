@@ -139,3 +139,43 @@ output "observability_alert_email" {
   description = "E-mail configurado para receber alertas"
   value       = var.enable_observability && var.alert_email != "" ? var.alert_email : null
 }
+
+
+# ==========================================================
+# Recovery mode (Opcional)
+# ==========================================================
+
+output "recovery_enabled" {
+  description = "Indica se modo de recuperação está habilitado"
+  value       = var.enable_recovery_mode
+}
+
+output "recovery_snapshot_time_utc" {
+  description = "Horário diário UTC configurado para snapshots"
+  value       = var.enable_recovery_mode ? var.recovery_snapshot_time_utc : null
+}
+
+output "recovery_retention_days" {
+  description = "Retenção (dias) dos snapshots"
+  value       = var.enable_recovery_mode ? var.recovery_retention_days : null
+}
+
+output "recovery_app_policy_id" {
+  description = "ID da política DLM de snapshots da APP"
+  value       = var.enable_recovery_mode && var.recovery_backup_app ? aws_dlm_lifecycle_policy.app_daily[0].id : null
+}
+
+output "recovery_db_policy_id" {
+  description = "ID da política DLM de snapshots da DB"
+  value       = var.enable_recovery_mode && var.recovery_backup_db && var.enable_db ? aws_dlm_lifecycle_policy.db_daily[0].id : null
+}
+
+output "recovery_app_runbook_name" {
+  description = "Nome do runbook de recuperação da APP"
+  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_app ? aws_ssm_document.recovery_app_runbook[0].name : null
+}
+
+output "recovery_db_runbook_name" {
+  description = "Nome do runbook de recuperação da DB"
+  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? aws_ssm_document.recovery_db_runbook[0].name : null
+}

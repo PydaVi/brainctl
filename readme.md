@@ -112,6 +112,31 @@ Com isso, novos workloads entram como extensão de catálogo, sem acoplar regras
 
 ---
 
+### Acesso para diagnóstico (sem RDP)
+
+Para facilitar troubleshooting quando o target group ficar unhealthy, o brainctl agora configura **SSM Session Manager** no profile das instâncias (junto com CloudWatch Agent), desde que `observability.enabled=true`.
+
+Fluxo recomendado de diagnóstico:
+
+```bash
+# 1) Descobrir IDs e dados de observabilidade
+go run ./cmd/brainctl status --stack-dir stacks/dev
+
+# 2) Iniciar sessão na instância APP (substitua INSTANCE_ID)
+aws ssm start-session --target INSTANCE_ID
+```
+
+Checks úteis dentro da instância:
+
+```powershell
+Get-WindowsFeature Web-Server
+Get-Service W3SVC
+Get-Content C:\ProgramData\Amazon\EC2Launch\log\agent.log -Tail 200
+Get-Content C:\inetpub\wwwroot\index.html -Head 40
+```
+
+---
+
 ## Overrides suportados no MVP
 
 `overrides.yaml` é opcional e permite ajustes controlados sem comprometer o contrato principal.

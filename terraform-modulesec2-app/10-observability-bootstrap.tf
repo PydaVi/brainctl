@@ -20,6 +20,12 @@ resource "aws_iam_role_policy_attachment" "ec2_cw_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+resource "aws_iam_role_policy_attachment" "ec2_ssm_managed" {
+  count      = var.enable_observability ? 1 : 0
+  role       = aws_iam_role.ec2_cw_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_instance_profile" "ec2_cw_profile" {
   count = var.enable_observability ? 1 : 0
   name  = "${var.name}-${var.environment}-cw-profile"

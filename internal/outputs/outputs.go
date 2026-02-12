@@ -73,6 +73,8 @@ func PrintPrettyStatus(v map[string]any) {
 			fmt.Printf("    sns_topic  : %s\n", snsTopic)
 			fmt.Printf("    alert_email: %s\n", email)
 		}
+		fmt.Printf("    log_group  : %s\n", asString(v["observability_log_group_name"], "(none)"))
+		fmt.Printf("    ssm_profile: %s\n", asString(v["observability_ssm_profile_name"], "(none)"))
 
 		alarmNames := asStringSlice(v["observability_alarm_names"])
 		if len(alarmNames) == 0 {

@@ -53,6 +53,7 @@ app_scaling:
 observability:
   enabled: true
   enable_ssm_endpoints: false
+  enable_ssm_private_dns: false
   cpu_high_threshold: 80
   alert_email: "seu-email@empresa.com"
 

@@ -123,6 +123,15 @@ Exemplo no `app.yaml`:
 observability:
   enabled: true
   enable_ssm_endpoints: true
+  enable_ssm_private_dns: false
+```
+
+
+> Se sua VPC tiver `enableDnsSupport` e `enableDnsHostnames` habilitados, você pode ativar também:
+
+```yaml
+observability:
+  enable_ssm_private_dns: true
 ```
 
 Fluxo recomendado de diagnóstico:

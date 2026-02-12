@@ -259,6 +259,12 @@ variable "enable_ssm_endpoints" {
   default     = false
 }
 
+variable "enable_ssm_private_dns" {
+  description = "Habilita private DNS nos endpoints de SSM (requer enableDnsSupport + enableDnsHostnames na VPC)"
+  type        = bool
+  default     = false
+}
+
 
 # ----------------------------
 # Recovery (Snapshot + Runbooks)

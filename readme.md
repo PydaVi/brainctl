@@ -1,117 +1,122 @@
 # brainctl 🧠
 
-> **Infraestrutura com mentalidade de produto**: do YAML para a AWS com governança, previsibilidade e velocidade.
-
-O **brainctl** é uma CLI em Go criada para transformar provisionamento de infraestrutura em algo **escalável, padronizado e colaborativo**. Em vez de cada squad “reinventar Terraform”, o projeto centraliza padrões e acelera entregas com uma experiência simples: descrever a stack e executar.
-
----
-
-### 🚀 Impacto real de negócio
-- **Reduz atrito entre times de produto e plataforma** com um fluxo declarativo.
-- **Acelera time-to-market** com operações de `plan` / `apply` padronizadas.
-- **Aumenta previsibilidade** ao manter contrato de infraestrutura controlado por validações.
-
-### 🧩 Engenharia com visão de escala
-- Código em **Go** com organização modular (parser, generator, workspace, runner).
-- Estratégia de stacks por ambiente (`dev`, `prod`) pronta para evolução.
-- Uso de **Terraform** como engine de execução, preservando boas práticas de IaC.
-
-### 🔐 Governança sem burocracia
-- Sistema de **overrides com whitelist** para permitir customização segura.
-- Flexibilidade para necessidades locais sem quebrar o baseline da plataforma.
+> Infraestrutura com mentalidade de produto
+> Transformando YAML declarativo em infraestrutura AWS governada, previsível e escalável.
 
 ---
 
-## Como o brainctl funciona
+## 🌎 O Problema
 
-```text
-app.yaml (+ overrides.yaml) -> parser/validator (Go) -> generator (Go) -> Terraform workspace -> AWS
+Equipes que adotam Infrastructure as Code geralmente enfrentam desafios recorrentes:
+
+* Times diferentes criam stacks com padrões inconsistentes
+* Governança e segurança dependem de revisão manual
+* Crescimento da cloud gera ambientes snowflake
+* Onboarding de novos engineers é lento
+* ClickOps continua existindo paralelamente ao IaC
+* Terraform puro exige conhecimento profundo para tarefas comuns
+
+Conforme ambientes crescem, o problema deixa de ser **provisionar recursos** e passa a ser **padronizar, governar e escalar infraestrutura com segurança e velocidade**.
+
+---
+
+## 💡 A Solução
+
+O **brainctl** é uma CLI de Platform Engineering que cria uma camada de abstração sobre Terraform, permitindo que equipes descrevam workloads usando contratos declarativos simples e governados.
+
+Ele transforma definições YAML em infraestrutura AWS padronizada, aplicando automaticamente:
+
+* Baselines de segurança
+* Padrões arquiteturais
+* Governança de recursos
+* Estrutura multiambiente
+* Integração com práticas modernas de IaC
+
+---
+
+## 🧭 Posicionamento do BrainCTL
+
+| Camada    | Responsabilidade                              |
+| --------- | --------------------------------------------- |
+| Terraform | Provisionamento de recursos                   |
+| brainctl  | Padronização, governança e experiência de uso |
+
+O brainctl **não substitui Terraform**.
+Ele atua como uma plataforma que organiza e controla como Terraform é utilizado.
+
+---
+
+## 🎯 Quem se beneficia
+
+* Platform teams
+* Times migrando de ClickOps para IaC
+* Empresas que precisam escalar governança cloud
+* Organizações com múltiplos squads provisionando recursos
+* Ambientes híbridos e multi-conta AWS
+
+---
+
+## 🚀 Impacto de Negócio
+
+* Reduz atrito entre times
+* Acelera time-to-market
+* Aumenta previsibilidade operacional
+* Melhora postura de segurança
+* Padroniza provisionamento cloud
+* Reduz risco de configuração incorreta
+
+---
+
+## ⚙️ Como Funciona
+
+```
+app.yaml (+ overrides.yaml)
+        ↓
+Parser / Validator (Go)
+        ↓
+Blueprint Generator
+        ↓
+Terraform Workspace
+        ↓
+AWS Infrastructure
 ```
 
-A proposta é simples: o time descreve “o que precisa”, e o brainctl cuida de gerar e orquestrar o caminho até a infraestrutura final.
-
-## Arquitetura de blueprints (preparada para crescer)
-
-O brainctl agora separa o **core da CLI** dos **blueprints de workload**:
-
-- `internal/generator`: engine/roteador de geração
-- `internal/blueprints/ec2app`: blueprint atual (`ec2-app`)
-
-Isso permite evoluir para novos tipos de workload sem misturar regras de negócio em um único arquivo.
+A equipe descreve **o que precisa**.
+O brainctl gerencia **como isso será provisionado**.
 
 ---
 
-## Estrutura atual (preparada para crescer)
+## 📦 Exemplo de Uso
 
-```text
-stacks/
-  dev/
-    app.yaml
-    overrides.yaml
-  prod/
-    app.yaml
-    overrides.yaml
-```
-
-Esse modelo facilita padronização multiambiente e cria base para uma operação mais madura de platform engineering.
-
-Cada stack também pode declarar o tipo de workload:
+### app.yaml
 
 ```yaml
+app:
+  name: payments-api
+  environment: dev
+  region: us-east-1
+
 workload:
   type: ec2-app
   version: v1
+
+ec2:
+  instance_type: t3.micro
+  os: windows-2022
 ```
 
 ---
 
-## Comandos principais
+### overrides.yaml (Opcional)
 
-```bash
-go run ./cmd/brainctl plan   --stack-dir stacks/dev
-go run ./cmd/brainctl apply  --stack-dir stacks/dev
-go run ./cmd/brainctl status --stack-dir stacks/dev
-go run ./cmd/brainctl blueprints
-```
-
-Também é possível desabilitar overrides quando necessário:
-
-```bash
-go run ./cmd/brainctl plan --stack-dir stacks/dev --overrides ""
-```
-
----
-
-
-### Catálogo de blueprints (PR 3)
-
-A evolução para múltiplos workloads agora está formalizada com:
-
-- `internal/blueprints/registry.go`: catálogo central com `type`, `version` e descrição
-- `internal/generator/generator.go`: resolve blueprint por `workload.type` + `workload.version`
-- `brainctl blueprints`: comando para listar blueprints disponíveis
-
-Com isso, novos workloads entram como extensão de catálogo, sem acoplar regras no core da CLI.
-
----
-
-## Overrides suportados no MVP
-
-`overrides.yaml` é opcional e permite ajustes controlados sem comprometer o contrato principal.
-
-Paths atualmente suportados (somente Security Groups):
-- `security_groups.app.ingress` (`append`)
-- `security_groups.db.ingress` (`append`)
-- `security_groups.alb.ingress` (`append`)
-
-Exemplo:
+Permite customização controlada sem quebrar o baseline.
 
 ```yaml
 overrides:
   - op: append
     path: security_groups.app.ingress
     value:
-      description: "RDP Office"
+      description: "Office RDP"
       from_port: 3389
       to_port: 3389
       protocol: tcp
@@ -121,23 +126,201 @@ overrides:
 
 ---
 
-## Narrativa profissional (pronta para portfólio)
+## 📁 Estrutura de Stacks
 
-Se você quiser usar esse projeto como case, aqui vai um resumo em tom de currículo/LinkedIn:
-
-> “Desenvolvi o **brainctl**, uma CLI em Go para padronização de infraestrutura AWS com abordagem declarativa e integração com Terraform. O projeto melhora governança de ambientes, acelera provisionamento e reduz inconsistências entre stacks, habilitando uma operação mais eficiente de platform engineering.”
-
----
-
-## Próximos passos estratégicos
-
-- Expandir catálogo de recursos suportados além de EC2-centric workloads.
-- Adicionar testes de contrato para schemas de `app.yaml` e `overrides.yaml`.
-- Evoluir observabilidade do ciclo de provisionamento (logs estruturados e métricas).
-- Publicar release versionada para distribuição em times internos.
+```
+stacks/
+  dev/
+    app.yaml
+    overrides.yaml
+  prod/
+    app.yaml
+    overrides.yaml
+```
 
 ---
 
-## Resumo
+## 🧩 Arquitetura do Projeto
 
-O **brainctl** não é só uma ferramenta de automação: é um passo concreto para tratar infraestrutura como produto — com **padrão, escala e experiência de uso**.
+### Core CLI
+
+Responsável por orquestração, validação e execução.
+
+### Blueprint Engine
+
+Define como workloads são transformados em infraestrutura.
+
+### Terraform Runner
+
+Executa provisionamento mantendo compatibilidade com práticas padrão do mercado.
+
+---
+
+## 🏗 Arquitetura de Blueprints
+
+O brainctl separa:
+
+* Core da plataforma
+* Catálogo extensível de workloads
+
+```
+internal/
+  generator/
+  blueprints/
+    ec2app/
+    registry.go
+```
+
+Isso permite adicionar novos workloads sem modificar o core.
+
+---
+
+## 📚 Catálogo de Blueprints
+
+O sistema suporta múltiplos tipos e versões:
+
+```bash
+brainctl blueprints
+```
+
+Cada blueprint define:
+
+* Recursos suportados
+* Baselines de segurança
+* Estrutura arquitetural
+* Versionamento do contrato
+
+---
+
+## 🔐 Governança com Flexibilidade
+
+O brainctl implementa um modelo híbrido:
+
+* Contrato principal governado
+* Overrides com whitelist controlada
+* Customização segura sem perda de padrão
+
+---
+
+## 🧪 Design Decisions
+
+### CLI em Go
+
+Portabilidade, performance e facilidade de distribuição.
+
+### Terraform como Engine
+
+Evita reinventar o provisionamento e mantém compatibilidade com ecossistema IaC.
+
+### Blueprint Registry
+
+Permite extensibilidade desacoplada.
+
+### Overrides Whitelist
+
+Equilibra governança e flexibilidade.
+
+---
+
+## 📌 Comandos Principais
+
+```bash
+brainctl plan   --stack-dir stacks/dev
+brainctl apply  --stack-dir stacks/dev
+brainctl status --stack-dir stacks/dev
+brainctl blueprints
+```
+
+---
+
+## ⚠️ Limitações Atuais
+
+* Catálogo inicial focado em workloads EC2
+* Suporte inicial AWS-only
+* Policy-as-Code ainda em evolução
+* Interface CLI (portal self-service planejado)
+
+---
+
+## 🗺 Roadmap
+
+### Curto Prazo
+
+* Testes de contrato para schemas
+* Observabilidade do ciclo de provisionamento
+* Versionamento formal de blueprints
+* Pipeline CI/CD integrado
+
+### Médio Prazo
+
+* Expansão do catálogo de workloads
+* Policy-as-Code integrado
+* Suporte multi-conta AWS
+* Plugin model para blueprints
+
+### Longo Prazo
+
+* Portal self-service para squads
+* Multi-cloud support
+* Integração com plataformas DevEx
+* Possível oferta SaaS ou modelo consultivo
+
+---
+
+## 🌐 Casos de Uso Reais
+
+* Padronização de workloads corporativos
+* Criação de plataformas internas de infraestrutura
+* Aceleração de migração para IaC
+* Baseline de segurança para provisionamento cloud
+
+---
+
+## 🧠 Filosofia do Projeto
+
+O brainctl trata infraestrutura como produto, aplicando conceitos de:
+
+* Platform Engineering
+* Developer Experience
+* Governance by Design
+* Security by Default
+* Infrastructure Contracts
+
+---
+
+## 💼 Possibilidades de Uso Comercial
+
+O brainctl pode ser utilizado como:
+
+* Plataforma interna corporativa
+* Ferramenta open source de padronização cloud
+* Base para consultorias de Platform Engineering
+* Framework para construção de plataformas DevEx
+
+---
+
+## 👨‍💻 Sobre o Autor
+
+O brainctl nasceu da experiência prática em ambientes corporativos híbridos e cloud-native, observando desafios reais de escalabilidade, governança e segurança em infraestrutura moderna.
+
+---
+
+## 📜 Licença
+
+MIT License
+
+---
+
+## 🤝 Contribuição
+
+Contribuições são bem-vindas.
+
+Roadmap e propostas podem ser abertas via Issues.
+
+---
+
+## ⭐ Visão Final
+
+O brainctl não é apenas automação.
+
+É uma tentativa de transformar infraestrutura em uma plataforma governada, escalável e acessível.

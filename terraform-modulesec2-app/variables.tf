@@ -252,3 +252,43 @@ variable "alert_email" {
   type        = string
   default     = ""
 }
+
+
+# ----------------------------
+# Recovery (Snapshot + Runbooks)
+# ----------------------------
+variable "enable_recovery_mode" {
+  description = "Habilita modo de recuperação com snapshots automáticos"
+  type        = bool
+  default     = false
+}
+
+variable "recovery_snapshot_time_utc" {
+  description = "Horário diário UTC para snapshots (HH:MM)"
+  type        = string
+  default     = "03:00"
+}
+
+variable "recovery_retention_days" {
+  description = "Dias de retenção dos snapshots diários"
+  type        = number
+  default     = 7
+}
+
+variable "recovery_backup_app" {
+  description = "Habilita backup da camada APP"
+  type        = bool
+  default     = true
+}
+
+variable "recovery_backup_db" {
+  description = "Habilita backup da camada DB"
+  type        = bool
+  default     = true
+}
+
+variable "recovery_enable_runbooks" {
+  description = "Cria runbooks de automação SSM para recuperação"
+  type        = bool
+  default     = true
+}

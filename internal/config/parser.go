@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -12,6 +14,8 @@ import (
 // A ideia é manter o YAML simples para o usuário, enquanto a lógica de
 // orquestração é aplicada pelo Go + módulos Terraform.
 type AppConfig struct {
+	Workload WorkloadConfig `yaml:"workload"`
+
 	App struct {
 		Name        string `yaml:"name"`
 		Environment string `yaml:"environment"`
@@ -37,9 +41,16 @@ type AppConfig struct {
 	LB            LBConfig            `yaml:"lb"`
 	AppScaling    AppScalingConfig    `yaml:"app_scaling"`
 	Observability ObservabilityConfig `yaml:"observability"`
+	Recovery      RecoveryConfig      `yaml:"recovery"`
 
 	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
 	RuntimeOverrides RuntimeOverrides `yaml:"-"`
+}
+
+// WorkloadConfig identifica qual blueprint deve ser usado para gerar a stack.
+type WorkloadConfig struct {
+	Type    string `yaml:"type"`
+	Version string `yaml:"version"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -77,6 +88,16 @@ type ObservabilityConfig struct {
 	Enabled          *bool  `yaml:"enabled"`
 	CPUHighThreshold int    `yaml:"cpu_high_threshold"`
 	AlertEmail       string `yaml:"alert_email"`
+}
+
+// RecoveryConfig define snapshots automáticos e runbooks de recuperação.
+type RecoveryConfig struct {
+	Enabled         bool   `yaml:"enabled"`
+	SnapshotTimeUTC string `yaml:"snapshot_time_utc"`
+	RetentionDays   int    `yaml:"retention_days"`
+	BackupApp       *bool  `yaml:"backup_app"`
+	BackupDB        *bool  `yaml:"backup_db"`
+	EnableRunbooks  *bool  `yaml:"enable_runbooks"`
 }
 
 type RuntimeOverrides struct {
@@ -192,8 +213,74 @@ func validateUserDataMode(mode string) bool {
 	return mode == "default" || mode == "custom" || mode == "merge"
 }
 
+// ResolveUserDataFiles permite apontar user_data para arquivos, mantendo app.yaml enxuto.
+// Suporta:
+//   - file://caminho/relativo/ou/absoluto.ps1
+//   - caminho direto (relativo/absoluto) quando o arquivo existe
+func ResolveUserDataFiles(cfg *AppConfig, stackDir string) error {
+	appResolved, err := resolveUserDataValue(cfg.EC2.UserData, stackDir)
+	if err != nil {
+		return fmt.Errorf("ec2.user_data: %w", err)
+	}
+	dbResolved, err := resolveUserDataValue(cfg.DB.UserData, stackDir)
+	if err != nil {
+		return fmt.Errorf("db.user_data: %w", err)
+	}
+
+	cfg.EC2.UserData = appResolved
+	cfg.DB.UserData = dbResolved
+	return nil
+}
+
+func resolveUserDataValue(raw, stackDir string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+
+	if strings.Contains(v, "\n") {
+		return raw, nil
+	}
+
+	fromFilePrefix := strings.HasPrefix(v, "file://")
+	candidate := strings.TrimPrefix(v, "file://")
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(stackDir, candidate)
+	}
+
+	info, err := os.Stat(candidate)
+	if err != nil {
+		if fromFilePrefix {
+			return "", fmt.Errorf("file not found: %s", candidate)
+		}
+		return raw, nil
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("path points to directory, expected file: %s", candidate)
+	}
+
+	content, err := os.ReadFile(candidate)
+	if err != nil {
+		return "", fmt.Errorf("read file %s: %w", candidate, err)
+	}
+	return string(content), nil
+}
+
 // Validate aplica regras e defaults do contrato declarativo.
 func (c *AppConfig) Validate() error {
+	if c.Workload.Type == "" {
+		c.Workload.Type = "ec2-app"
+	}
+	if c.Workload.Version == "" {
+		c.Workload.Version = "v1"
+	}
+	if c.Workload.Type != "ec2-app" {
+		return fmt.Errorf("workload.type must be 'ec2-app'")
+	}
+	if c.Workload.Version != "v1" {
+		return fmt.Errorf("workload.version must be 'v1'")
+	}
+
 	if c.App.Name == "" {
 		return fmt.Errorf("app.name is required")
 	}
@@ -313,6 +400,45 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.Observability.AlertEmail != "" && !strings.Contains(c.Observability.AlertEmail, "@") {
 		return fmt.Errorf("observability.alert_email must be a valid email")
+	}
+
+	if c.Recovery.SnapshotTimeUTC == "" {
+		c.Recovery.SnapshotTimeUTC = "03:00"
+	}
+	if len(c.Recovery.SnapshotTimeUTC) != 5 || c.Recovery.SnapshotTimeUTC[2] != ':' {
+		return fmt.Errorf("recovery.snapshot_time_utc must be in HH:MM format")
+	}
+	hour, err := strconv.Atoi(c.Recovery.SnapshotTimeUTC[0:2])
+	if err != nil {
+		return fmt.Errorf("recovery.snapshot_time_utc must contain numeric hour")
+	}
+	minute, err := strconv.Atoi(c.Recovery.SnapshotTimeUTC[3:5])
+	if err != nil {
+		return fmt.Errorf("recovery.snapshot_time_utc must contain numeric minute")
+	}
+	if hour < 0 || hour > 23 || minute < 0 || minute > 59 {
+		return fmt.Errorf("recovery.snapshot_time_utc must be a valid 24h time")
+	}
+	if c.Recovery.RetentionDays == 0 {
+		c.Recovery.RetentionDays = 7
+	}
+	if c.Recovery.RetentionDays < 1 || c.Recovery.RetentionDays > 365 {
+		return fmt.Errorf("recovery.retention_days must be between 1 and 365")
+	}
+	if c.Recovery.BackupApp == nil {
+		v := true
+		c.Recovery.BackupApp = &v
+	}
+	if c.Recovery.BackupDB == nil {
+		v := true
+		c.Recovery.BackupDB = &v
+	}
+	if c.Recovery.EnableRunbooks == nil {
+		v := true
+		c.Recovery.EnableRunbooks = &v
+	}
+	if c.Recovery.Enabled && *c.Recovery.BackupDB && !c.DB.Enabled {
+		return fmt.Errorf("recovery.backup_db=true requires db.enabled=true")
 	}
 
 	return nil

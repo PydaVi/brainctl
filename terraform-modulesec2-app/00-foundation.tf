@@ -117,27 +117,57 @@ locals {
 
   cw_user_data_app = <<-EOT
     $ErrorActionPreference = "Stop"
+    $brainctlLogPath = "C:\ProgramData\Amazon\EC2Launch\log\brainctl-userdata.log"
+    function Write-BrainctlLog([string]$message) {
+      $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+      Add-Content -Path $brainctlLogPath -Value "$ts [APP] $message"
+    }
+
+    Write-BrainctlLog "Starting CloudWatch bootstrap"
     New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
 
     @'
 ${local.cw_agent_config_app}
 '@ | Set-Content -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json" -Encoding UTF8
 
-    & "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" `
-      -a fetch-config -m ec2 -s `
-      -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+    $cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
+    if (Test-Path $cwCtl) {
+      try {
+        & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+        Write-BrainctlLog "CloudWatch Agent bootstrap completed"
+      } catch {
+        Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
+      }
+    } else {
+      Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
+    }
   EOT
 
   cw_user_data_db = <<-EOT
     $ErrorActionPreference = "Stop"
+    $brainctlLogPath = "C:\ProgramData\Amazon\EC2Launch\log\brainctl-userdata.log"
+    function Write-BrainctlLog([string]$message) {
+      $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+      Add-Content -Path $brainctlLogPath -Value "$ts [DB] $message"
+    }
+
+    Write-BrainctlLog "Starting CloudWatch bootstrap"
     New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
 
     @'
 ${local.cw_agent_config_db}
 '@ | Set-Content -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json" -Encoding UTF8
 
-    & "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" `
-      -a fetch-config -m ec2 -s `
-      -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+    $cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
+    if (Test-Path $cwCtl) {
+      try {
+        & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+        Write-BrainctlLog "CloudWatch Agent bootstrap completed"
+      } catch {
+        Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
+      }
+    } else {
+      Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
+    }
   EOT
 }

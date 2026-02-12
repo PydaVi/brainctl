@@ -150,8 +150,11 @@ Checks úteis dentro da instância:
 Get-WindowsFeature Web-Server
 Get-Service W3SVC
 Get-Content C:\ProgramData\Amazon\EC2Launch\log\agent.log -Tail 200
+Get-Content C:\ProgramData\Amazon\EC2Launch\log\brainctl-userdata.log -Tail 200
 Get-Content C:\inetpub\wwwroot\index.html -Head 40
 ```
+
+> O bootstrap do CloudWatch Agent agora é **best-effort**: se o agente não existir na AMI, o script registra no `brainctl-userdata.log` e continua o restante do user data (ex.: instalação/configuração do IIS).
 
 ---
 

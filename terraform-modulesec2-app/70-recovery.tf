@@ -295,3 +295,4 @@ resource "aws_ssm_document" "recovery_db_runbook" {
     Environment = var.environment
     ManagedBy   = "brainctl"
   }
+}

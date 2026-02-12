@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/PydaVi/brainctl/internal/blueprints"
 	"github.com/PydaVi/brainctl/internal/config"
 	"github.com/PydaVi/brainctl/internal/generator"
 	"github.com/PydaVi/brainctl/internal/outputs"
@@ -42,7 +43,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 
@@ -67,7 +68,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -93,7 +94,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -120,7 +121,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -132,6 +133,7 @@ func main() {
 
 			fmt.Println("== brainctl status ==")
 			fmt.Printf("App: %s (%s)\n", cfg.App.Name, cfg.App.Environment)
+			fmt.Printf("Workload: %s@%s\n", cfg.Workload.Type, cfg.Workload.Version)
 			fmt.Printf("Region: %s\n", cfg.App.Region)
 			fmt.Printf("Stack dir: %s\n", stackDir)
 			fmt.Printf("Workspace: %s\n", wsDir)
@@ -155,6 +157,15 @@ func main() {
 			if len(cfg.RuntimeOverrides.AppExtraIngress)+len(cfg.RuntimeOverrides.DBExtraIngress)+len(cfg.RuntimeOverrides.ALBExtraIngress) > 0 {
 				fmt.Printf("Overrides: app_extra_ingress_rules=%d db_extra_ingress_rules=%d alb_extra_ingress_rules=%d\n",
 					len(cfg.RuntimeOverrides.AppExtraIngress), len(cfg.RuntimeOverrides.DBExtraIngress), len(cfg.RuntimeOverrides.ALBExtraIngress))
+			}
+			if cfg.Recovery.Enabled {
+				fmt.Printf("Recovery: enabled (time_utc=%s retention_days=%d backup_app=%t backup_db=%t runbooks=%t)\n",
+					cfg.Recovery.SnapshotTimeUTC, cfg.Recovery.RetentionDays,
+					cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+					cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+					cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks)
+			} else {
+				fmt.Println("Recovery: disabled")
 			}
 
 			present, _ := r.StatePull()
@@ -192,7 +203,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -209,7 +220,18 @@ func main() {
 	}
 	applyCommonFlags(outputCmd, &file, &stackDir, &overridesFile)
 
-	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd)
+	blueprintsCmd := &cobra.Command{
+		Use:   "blueprints",
+		Short: "List available workload blueprints",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("== available blueprints ==")
+			for _, b := range blueprints.List() {
+				fmt.Printf("- %s@%s: %s\n", b.Type, b.Version, b.Description)
+			}
+		},
+	}
+
+	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, blueprintsCmd)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -85,6 +85,18 @@ func PrintPrettyStatus(v map[string]any) {
 		}
 		fmt.Println()
 	}
+	recoveryEnabled := asString(v["recovery_enabled"], "")
+	if recoveryEnabled == "true" {
+		fmt.Println("  RECOVERY")
+		fmt.Printf("    snapshot_utc : %s\n", asString(v["recovery_snapshot_time_utc"], "(none)"))
+		fmt.Printf("    retention    : %s days\n", asString(v["recovery_retention_days"], "(none)"))
+		fmt.Printf("    app_policy   : %s\n", asString(v["recovery_app_policy_id"], "(none)"))
+		fmt.Printf("    db_policy    : %s\n", asString(v["recovery_db_policy_id"], "(none)"))
+		fmt.Printf("    app_runbook  : %s\n", asString(v["recovery_app_runbook_name"], "(none)"))
+		fmt.Printf("    db_runbook   : %s\n", asString(v["recovery_db_runbook_name"], "(none)"))
+		fmt.Println()
+	}
+
 }
 
 // asString converte valores genéricos em string com fallback.

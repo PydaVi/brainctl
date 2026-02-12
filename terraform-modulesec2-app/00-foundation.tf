@@ -36,17 +36,9 @@ locals {
     var.db_user_data_mode == "custom" ? local.db_custom_user_data : trimspace(join("\n", compact([local.db_default_user_data, local.db_custom_user_data])))
   )
 
-  app_effective_user_data = trimspace(local.app_effective_user_data_script) != "" ? <<-EOT
-    <powershell>
-${trimspace(local.app_effective_user_data_script)}
-    </powershell>
-  EOT : ""
+  app_effective_user_data = trimspace(local.app_effective_user_data_script) != "" ? format("<powershell>\n%s\n</powershell>", trimspace(local.app_effective_user_data_script)) : ""
 
-  db_effective_user_data = trimspace(local.db_effective_user_data_script) != "" ? <<-EOT
-    <powershell>
-${trimspace(local.db_effective_user_data_script)}
-    </powershell>
-  EOT : ""
+  db_effective_user_data = trimspace(local.db_effective_user_data_script) != "" ? format("<powershell>\n%s\n</powershell>", trimspace(local.db_effective_user_data_script)) : ""
 
   sns_enabled   = var.enable_observability && var.alert_email != ""
   alarm_actions = local.sns_enabled ? [aws_sns_topic.alerts[0].arn] : []

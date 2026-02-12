@@ -61,3 +61,90 @@ resource "aws_sns_topic_subscription" "email" {
   protocol  = "email"
   endpoint  = var.alert_email
 }
+
+resource "aws_security_group" "ssm_endpoints" {
+  count       = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  name        = "${var.name}-${var.environment}-ssm-endpoints-sg"
+  description = "Security group for private SSM VPC endpoints"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description     = "HTTPS from APP"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_sg.id]
+  }
+
+  dynamic "ingress" {
+    for_each = var.enable_db ? [1] : []
+    content {
+      description     = "HTTPS from DB"
+      from_port       = 443
+      to_port         = 443
+      protocol        = "tcp"
+      security_groups = [aws_security_group.db_sg[0].id]
+    }
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-ssm-endpoints-sg"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [var.subnet_id]
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-ssm"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_vpc_endpoint" "ssmmessages" {
+  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [var.subnet_id]
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-ssmmessages"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_vpc_endpoint" "ec2messages" {
+  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.ec2messages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [var.subnet_id]
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-ec2messages"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}

@@ -71,6 +71,7 @@ module "app" {
   app_asg_cpu_target     = {{ .AppScaling.CPUTarget }}
 
   enable_observability = {{ .ObservabilityEnabled }}
+  enable_ssm_endpoints = {{ .ObservabilityEnableSSMEndpoints }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
 
@@ -243,15 +244,16 @@ output "recovery_db_runbook_name" {
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled   bool
-	RecoveryBackupApp      bool
-	RecoveryBackupDB       bool
-	RecoveryEnableRunbooks bool
-	AppUserDataB64         string
-	DBUserDataB64          string
-	AppExtraIngressHCL     string
-	DBExtraIngressHCL      string
-	ALBExtraIngressHCL     string
+	ObservabilityEnabled            bool
+	ObservabilityEnableSSMEndpoints bool
+	RecoveryBackupApp               bool
+	RecoveryBackupDB                bool
+	RecoveryEnableRunbooks          bool
+	AppUserDataB64                  string
+	DBUserDataB64                   string
+	AppExtraIngressHCL              string
+	DBExtraIngressHCL               string
+	ALBExtraIngressHCL              string
 }
 
 // Generate monta workspace Terraform completo para o workload ec2-app.
@@ -281,14 +283,15 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:              cfg,
-		ObservabilityEnabled:   cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		RecoveryBackupApp:      cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
-		RecoveryBackupDB:       cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
-		RecoveryEnableRunbooks: cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
-		AppExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:      buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:                       cfg,
+		ObservabilityEnabled:            cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		ObservabilityEnableSSMEndpoints: cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
+		RecoveryBackupApp:               cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:                cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks:          cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		AppExtraIngressHCL:              buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:              buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
 
 	appUserData, err := sanitizePowerShellUserData(cfg.EC2.UserData)

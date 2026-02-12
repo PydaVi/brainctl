@@ -253,6 +253,12 @@ variable "alert_email" {
   default     = ""
 }
 
+variable "enable_ssm_endpoints" {
+  description = "Cria endpoints privados de SSM (ssm, ssmmessages, ec2messages) para VPC sem saída de internet"
+  type        = bool
+  default     = false
+}
+
 
 # ----------------------------
 # Recovery (Snapshot + Runbooks)

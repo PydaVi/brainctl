@@ -52,6 +52,7 @@ app_scaling:
 
 observability:
   enabled: true
+  enable_ssm_endpoints: true
   cpu_high_threshold: 80
   alert_email: "augustt.fabio@gmail.com"
 

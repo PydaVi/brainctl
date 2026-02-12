@@ -114,7 +114,16 @@ Com isso, novos workloads entram como extensão de catálogo, sem acoplar regras
 
 ### Acesso para diagnóstico (sem RDP)
 
-Para facilitar troubleshooting quando o target group ficar unhealthy, o brainctl agora configura **SSM Session Manager** no profile das instâncias (junto com CloudWatch Agent), desde que `observability.enabled=true`.
+Para facilitar troubleshooting quando o target group ficar unhealthy, o brainctl agora configura **SSM Session Manager** no profile das instâncias e pode criar endpoints privados de SSM (sem NAT), quando `observability.enable_ssm_endpoints=true`.
+
+
+Exemplo no `app.yaml`:
+
+```yaml
+observability:
+  enabled: true
+  enable_ssm_endpoints: true
+```
 
 Fluxo recomendado de diagnóstico:
 

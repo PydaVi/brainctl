@@ -85,9 +85,10 @@ type AppScalingConfig struct {
 
 // ObservabilityConfig controla dashboards, alarmes e SNS.
 type ObservabilityConfig struct {
-	Enabled          *bool  `yaml:"enabled"`
-	CPUHighThreshold int    `yaml:"cpu_high_threshold"`
-	AlertEmail       string `yaml:"alert_email"`
+	Enabled            *bool  `yaml:"enabled"`
+	CPUHighThreshold   int    `yaml:"cpu_high_threshold"`
+	AlertEmail         string `yaml:"alert_email"`
+	EnableSSMEndpoints *bool  `yaml:"enable_ssm_endpoints"`
 }
 
 // RecoveryConfig define snapshots automáticos e runbooks de recuperação.
@@ -392,6 +393,10 @@ func (c *AppConfig) Validate() error {
 		enabled := true
 		c.Observability.Enabled = &enabled
 	}
+	if c.Observability.EnableSSMEndpoints == nil {
+		v := false
+		c.Observability.EnableSSMEndpoints = &v
+	}
 	if c.Observability.CPUHighThreshold == 0 {
 		c.Observability.CPUHighThreshold = 80
 	}
@@ -400,6 +405,9 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.Observability.AlertEmail != "" && !strings.Contains(c.Observability.AlertEmail, "@") {
 		return fmt.Errorf("observability.alert_email must be a valid email")
+	}
+	if c.Observability.EnableSSMEndpoints != nil && *c.Observability.EnableSSMEndpoints && (c.Observability.Enabled == nil || !*c.Observability.Enabled) {
+		return fmt.Errorf("observability.enable_ssm_endpoints=true requires observability.enabled=true")
 	}
 
 	if c.Recovery.SnapshotTimeUTC == "" {

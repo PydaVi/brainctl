@@ -162,20 +162,20 @@ output "recovery_retention_days" {
 
 output "recovery_app_policy_id" {
   description = "ID da política DLM de snapshots da APP"
-  value       = var.enable_recovery_mode && var.recovery_backup_app ? aws_dlm_lifecycle_policy.app_daily[0].id : null
+  value       = var.enable_recovery_mode && var.recovery_backup_app ? module.recovery.recovery_app_policy_id : null
 }
 
 output "recovery_db_policy_id" {
   description = "ID da política DLM de snapshots da DB"
-  value       = var.enable_recovery_mode && var.recovery_backup_db && var.enable_db ? aws_dlm_lifecycle_policy.db_daily[0].id : null
+  value       = var.enable_recovery_mode && var.recovery_backup_db && var.enable_db ? module.recovery.recovery_db_policy_id : null
 }
 
 output "recovery_app_runbook_name" {
   description = "Nome do runbook de recuperação da APP"
-  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_app ? aws_ssm_document.recovery_app_runbook[0].name : null
+  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_app ? module.recovery.recovery_app_runbook_name : null
 }
 
 output "recovery_db_runbook_name" {
   description = "Nome do runbook de recuperação da DB"
-  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? aws_ssm_document.recovery_db_runbook[0].name : null
+  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? module.recovery.recovery_db_runbook_name : null
 }

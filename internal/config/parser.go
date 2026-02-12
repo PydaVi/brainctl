@@ -48,7 +48,8 @@ type AppConfig struct {
 
 // WorkloadConfig identifica qual blueprint deve ser usado para gerar a stack.
 type WorkloadConfig struct {
-	Type string `yaml:"type"`
+	Type    string `yaml:"type"`
+	Version string `yaml:"version"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -216,8 +217,14 @@ func (c *AppConfig) Validate() error {
 	if c.Workload.Type == "" {
 		c.Workload.Type = "ec2-app"
 	}
+	if c.Workload.Version == "" {
+		c.Workload.Version = "v1"
+	}
 	if c.Workload.Type != "ec2-app" {
 		return fmt.Errorf("workload.type must be 'ec2-app'")
+	}
+	if c.Workload.Version != "v1" {
+		return fmt.Errorf("workload.version must be 'v1'")
 	}
 
 	if c.App.Name == "" {

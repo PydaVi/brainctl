@@ -60,6 +60,7 @@ Cada stack também pode declarar o tipo de workload:
 ```yaml
 workload:
   type: ec2-app
+  version: v1
 ```
 
 ---
@@ -70,6 +71,7 @@ workload:
 go run ./cmd/brainctl plan   --stack-dir stacks/dev
 go run ./cmd/brainctl apply  --stack-dir stacks/dev
 go run ./cmd/brainctl status --stack-dir stacks/dev
+go run ./cmd/brainctl blueprints
 ```
 
 Também é possível desabilitar overrides quando necessário:
@@ -77,6 +79,19 @@ Também é possível desabilitar overrides quando necessário:
 ```bash
 go run ./cmd/brainctl plan --stack-dir stacks/dev --overrides ""
 ```
+
+---
+
+
+### Catálogo de blueprints (PR 3)
+
+A evolução para múltiplos workloads agora está formalizada com:
+
+- `internal/blueprints/registry.go`: catálogo central com `type`, `version` e descrição
+- `internal/generator/generator.go`: resolve blueprint por `workload.type` + `workload.version`
+- `brainctl blueprints`: comando para listar blueprints disponíveis
+
+Com isso, novos workloads entram como extensão de catálogo, sem acoplar regras no core da CLI.
 
 ---
 

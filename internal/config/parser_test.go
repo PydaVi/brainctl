@@ -38,4 +38,31 @@ ec2:
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate config: %v", err)
 	}
+
+	if cfg.Workload.Type != "ec2-app" {
+		t.Fatalf("expected default workload.type=ec2-app, got %q", cfg.Workload.Type)
+	}
+	if cfg.Workload.Version != "v1" {
+		t.Fatalf("expected default workload.version=v1, got %q", cfg.Workload.Version)
+	}
+}
+
+func TestValidate_InvalidWorkloadVersion(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "ec2-app"
+	cfg.Workload.Version = "v2"
+	cfg.App.Name = "brainctl-app"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	cfg.EC2.InstanceType = "t3.micro"
+	cfg.EC2.UserDataMode = "default"
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "workload.version must be 'v1'" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
 }

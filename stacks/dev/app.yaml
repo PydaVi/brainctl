@@ -1,5 +1,6 @@
 workload:
   type: ec2-app
+  version: v1
 
 app:
   name: brain-test
@@ -36,9 +37,9 @@ ec2:
 
 db:
   enabled: true
-  instance_type: t3.micro
+  instance_type: t3.2xlarge
   port: 1433
-  ami: ""
+  ami: "ami-0d3a65480772bc756"
   user_data_mode: default
   user_data: ""
 

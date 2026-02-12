@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/PydaVi/brainctl/internal/blueprints"
 	"github.com/PydaVi/brainctl/internal/config"
 	"github.com/PydaVi/brainctl/internal/generator"
 	"github.com/PydaVi/brainctl/internal/outputs"
@@ -132,6 +133,7 @@ func main() {
 
 			fmt.Println("== brainctl status ==")
 			fmt.Printf("App: %s (%s)\n", cfg.App.Name, cfg.App.Environment)
+			fmt.Printf("Workload: %s@%s\n", cfg.Workload.Type, cfg.Workload.Version)
 			fmt.Printf("Region: %s\n", cfg.App.Region)
 			fmt.Printf("Stack dir: %s\n", stackDir)
 			fmt.Printf("Workspace: %s\n", wsDir)
@@ -218,7 +220,18 @@ func main() {
 	}
 	applyCommonFlags(outputCmd, &file, &stackDir, &overridesFile)
 
-	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd)
+	blueprintsCmd := &cobra.Command{
+		Use:   "blueprints",
+		Short: "List available workload blueprints",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("== available blueprints ==")
+			for _, b := range blueprints.List() {
+				fmt.Printf("- %s@%s: %s\n", b.Type, b.Version, b.Description)
+			}
+		},
+	}
+
+	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, blueprintsCmd)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

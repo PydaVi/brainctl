@@ -1,5 +1,6 @@
 workload:
   type: ec2-app
+  version: v1
 
 app:
   name: brain-test

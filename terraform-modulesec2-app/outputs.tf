@@ -101,33 +101,27 @@ output "alb_target_group_arn" {
 
 output "observability_app_dashboard_name" {
   description = "Nome do dashboard de observabilidade da APP"
-  value       = var.enable_observability ? (var.enable_app_asg ? aws_cloudwatch_dashboard.app_asg[0].dashboard_name : aws_cloudwatch_dashboard.app[0].dashboard_name) : null
+  value       = module.observability.app_dashboard_name
 }
 
 output "observability_app_dashboard_url" {
   description = "URL do dashboard de observabilidade da APP"
-  value       = var.enable_observability ? (var.enable_app_asg ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app_asg[0].dashboard_name}" : "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app[0].dashboard_name}") : null
+  value       = module.observability.app_dashboard_url
 }
 
 output "observability_db_dashboard_name" {
   description = "Nome do dashboard de observabilidade do DB"
-  value       = var.enable_observability && var.enable_db ? aws_cloudwatch_dashboard.db[0].dashboard_name : null
+  value       = module.observability.db_dashboard_name
 }
 
 output "observability_db_dashboard_url" {
   description = "URL do dashboard de observabilidade do DB"
-  value       = var.enable_observability && var.enable_db ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db[0].dashboard_name}" : null
+  value       = module.observability.db_dashboard_url
 }
 
 output "observability_alarm_names" {
   description = "Lista com nomes dos alarmes criados"
-  value = var.enable_observability ? compact([
-    var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_cpu_high[0].alarm_name : aws_cloudwatch_metric_alarm.app_cpu_high[0].alarm_name,
-    var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_inservice_low[0].alarm_name : aws_cloudwatch_metric_alarm.app_status_check_failed[0].alarm_name,
-    var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_unhealthy_hosts[0].alarm_name : null) : aws_cloudwatch_metric_alarm.app_unreachable[0].alarm_name,
-    var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_5xx_high[0].alarm_name : null) : aws_cloudwatch_metric_alarm.app_disk_low_free[0].alarm_name,
-    var.enable_db ? aws_cloudwatch_metric_alarm.db_cpu_high[0].alarm_name : null,
-  ]) : []
+  value       = module.observability.alarm_names
 }
 
 output "observability_sns_topic_arn" {

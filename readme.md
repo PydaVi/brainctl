@@ -30,6 +30,15 @@ app.yaml (+ overrides.yaml) -> parser/validator (Go) -> generator (Go) -> Terraf
 
 A proposta é simples: o time descreve “o que precisa”, e o brainctl cuida de gerar e orquestrar o caminho até a infraestrutura final.
 
+## Arquitetura de blueprints (preparada para crescer)
+
+O brainctl agora separa o **core da CLI** dos **blueprints de workload**:
+
+- `internal/generator`: engine/roteador de geração
+- `internal/blueprints/ec2app`: blueprint atual (`ec2-app`)
+
+Isso permite evoluir para novos tipos de workload sem misturar regras de negócio em um único arquivo.
+
 ---
 
 ## Estrutura atual (preparada para crescer)
@@ -45,6 +54,13 @@ stacks/
 ```
 
 Esse modelo facilita padronização multiambiente e cria base para uma operação mais madura de platform engineering.
+
+Cada stack também pode declarar o tipo de workload:
+
+```yaml
+workload:
+  type: ec2-app
+```
 
 ---
 

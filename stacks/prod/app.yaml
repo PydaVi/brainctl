@@ -1,3 +1,6 @@
+workload:
+  type: ec2-app
+
 app:
   name: brain-test
   environment: dev

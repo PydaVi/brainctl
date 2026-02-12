@@ -42,7 +42,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 
@@ -67,7 +67,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -93,7 +93,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -120,7 +120,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)
@@ -201,7 +201,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			if err := generator.GenerateEC2App(wsDir, cfg); err != nil {
+			if err := generator.Generate(wsDir, cfg); err != nil {
 				return err
 			}
 			r := terraform.NewRunner(wsDir)

@@ -13,6 +13,8 @@ import (
 // A ideia é manter o YAML simples para o usuário, enquanto a lógica de
 // orquestração é aplicada pelo Go + módulos Terraform.
 type AppConfig struct {
+	Workload WorkloadConfig `yaml:"workload"`
+
 	App struct {
 		Name        string `yaml:"name"`
 		Environment string `yaml:"environment"`
@@ -42,6 +44,11 @@ type AppConfig struct {
 
 	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
 	RuntimeOverrides RuntimeOverrides `yaml:"-"`
+}
+
+// WorkloadConfig identifica qual blueprint deve ser usado para gerar a stack.
+type WorkloadConfig struct {
+	Type string `yaml:"type"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -206,6 +213,13 @@ func validateUserDataMode(mode string) bool {
 
 // Validate aplica regras e defaults do contrato declarativo.
 func (c *AppConfig) Validate() error {
+	if c.Workload.Type == "" {
+		c.Workload.Type = "ec2-app"
+	}
+	if c.Workload.Type != "ec2-app" {
+		return fmt.Errorf("workload.type must be 'ec2-app'")
+	}
+
 	if c.App.Name == "" {
 		return fmt.Errorf("app.name is required")
 	}

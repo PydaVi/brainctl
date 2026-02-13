@@ -29,12 +29,16 @@ locals {
   app_default_user_data = var.enable_observability ? local.cw_user_data_app : ""
   db_default_user_data  = var.enable_observability ? local.cw_user_data_db : ""
 
-  app_effective_user_data = var.app_user_data_mode == "default" ? local.app_default_user_data : (
+  app_effective_user_data_script = var.app_user_data_mode == "default" ? local.app_default_user_data : (
     var.app_user_data_mode == "custom" ? local.app_custom_user_data : trimspace(join("\n", compact([local.app_default_user_data, local.app_custom_user_data])))
   )
-  db_effective_user_data = var.db_user_data_mode == "default" ? local.db_default_user_data : (
+  db_effective_user_data_script = var.db_user_data_mode == "default" ? local.db_default_user_data : (
     var.db_user_data_mode == "custom" ? local.db_custom_user_data : trimspace(join("\n", compact([local.db_default_user_data, local.db_custom_user_data])))
   )
+
+  app_effective_user_data = trimspace(local.app_effective_user_data_script) != "" ? format("<powershell>\n%s\n</powershell>", trimspace(local.app_effective_user_data_script)) : ""
+
+  db_effective_user_data = trimspace(local.db_effective_user_data_script) != "" ? format("<powershell>\n%s\n</powershell>", trimspace(local.db_effective_user_data_script)) : ""
 
   sns_enabled   = var.enable_observability && var.alert_email != ""
   alarm_actions = local.sns_enabled ? [aws_sns_topic.alerts[0].arn] : []
@@ -112,32 +116,58 @@ locals {
   })
 
   cw_user_data_app = <<-EOT
-    <powershell>
-      $ErrorActionPreference = "Stop"
-      New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
+    $ErrorActionPreference = "Stop"
+    $brainctlLogPath = "C:\ProgramData\Amazon\EC2Launch\log\brainctl-userdata.log"
+    function Write-BrainctlLog([string]$message) {
+      $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+      Add-Content -Path $brainctlLogPath -Value "$ts [APP] $message"
+    }
 
-      @'
+    Write-BrainctlLog "Starting CloudWatch bootstrap"
+    New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
+
+    @'
 ${local.cw_agent_config_app}
 '@ | Set-Content -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json" -Encoding UTF8
 
-      & "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" `
-        -a fetch-config -m ec2 -s `
-        -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
-    </powershell>
+    $cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
+    if (Test-Path $cwCtl) {
+      try {
+        & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+        Write-BrainctlLog "CloudWatch Agent bootstrap completed"
+      } catch {
+        Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
+      }
+    } else {
+      Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
+    }
   EOT
 
   cw_user_data_db = <<-EOT
-    <powershell>
-      $ErrorActionPreference = "Stop"
-      New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
+    $ErrorActionPreference = "Stop"
+    $brainctlLogPath = "C:\ProgramData\Amazon\EC2Launch\log\brainctl-userdata.log"
+    function Write-BrainctlLog([string]$message) {
+      $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+      Add-Content -Path $brainctlLogPath -Value "$ts [DB] $message"
+    }
 
-      @'
+    Write-BrainctlLog "Starting CloudWatch bootstrap"
+    New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
+
+    @'
 ${local.cw_agent_config_db}
 '@ | Set-Content -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json" -Encoding UTF8
 
-      & "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" `
-        -a fetch-config -m ec2 -s `
-        -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
-    </powershell>
+    $cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
+    if (Test-Path $cwCtl) {
+      try {
+        & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
+        Write-BrainctlLog "CloudWatch Agent bootstrap completed"
+      } catch {
+        Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
+      }
+    } else {
+      Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
+    }
   EOT
 }

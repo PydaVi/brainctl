@@ -19,27 +19,14 @@ ec2:
   os: windows-2022
   ami: ""
   user_data_mode: merge
-  user_data: |
-    <powershell>
-      $ErrorActionPreference = "Stop"
-      Install-WindowsFeature -Name Web-Server -IncludeManagementTools
-      New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
-      @"
-    <html>
-      <body>
-        <h1>hello world from brainctl</h1>
-      </body>
-    </html>
-    "@ | Set-Content -Path "C:\inetpub\wwwroot\index.html" -Encoding UTF8
-      Restart-Service W3SVC
-    </powershell>
+  user_data: file://scripts/app-user-data.ps1
   imds_v2_required: true
 
 db:
   enabled: true
-  instance_type: t3.2xlarge
+  instance_type: t3.micro
   port: 1433
-  ami: "ami-0d3a65480772bc756"
+  ami: ""
   user_data_mode: default
   user_data: ""
 
@@ -65,6 +52,8 @@ app_scaling:
 
 observability:
   enabled: true
+  enable_ssm_endpoints: true
+  enable_ssm_private_dns: true
   cpu_high_threshold: 80
   alert_email: "augustt.fabio@gmail.com"
 

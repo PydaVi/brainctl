@@ -253,6 +253,18 @@ variable "alert_email" {
   default     = ""
 }
 
+variable "enable_ssm_endpoints" {
+  description = "Cria endpoints privados de SSM (ssm, ssmmessages, ec2messages) para VPC sem saída de internet"
+  type        = bool
+  default     = false
+}
+
+variable "enable_ssm_private_dns" {
+  description = "Habilita private DNS nos endpoints de SSM (requer enableDnsSupport + enableDnsHostnames na VPC)"
+  type        = bool
+  default     = false
+}
+
 
 # ----------------------------
 # Recovery (Snapshot + Runbooks)

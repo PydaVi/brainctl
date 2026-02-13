@@ -134,6 +134,16 @@ output "observability_alert_email" {
   value       = var.enable_observability && var.alert_email != "" ? var.alert_email : null
 }
 
+output "observability_log_group_name" {
+  description = "CloudWatch Log Group coletando logs das instâncias"
+  value       = var.enable_observability ? aws_cloudwatch_log_group.brainctl[0].name : null
+}
+
+output "observability_ssm_profile_name" {
+  description = "Instance Profile com permissões de CloudWatch Agent + SSM"
+  value       = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
+}
+
 
 # ==========================================================
 # Recovery mode (Opcional)

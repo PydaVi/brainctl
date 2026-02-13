@@ -66,3 +66,55 @@ func TestValidate_InvalidWorkloadVersion(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestValidate_SSMEndpointsRequiresObservability(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "ec2-app"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-app"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	cfg.EC2.InstanceType = "t3.micro"
+	cfg.EC2.UserDataMode = "default"
+
+	obsEnabled := false
+	ssmEndpoints := true
+	cfg.Observability.Enabled = &obsEnabled
+	cfg.Observability.EnableSSMEndpoints = &ssmEndpoints
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "observability.enable_ssm_endpoints=true requires observability.enabled=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "ec2-app"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-app"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	cfg.EC2.InstanceType = "t3.micro"
+	cfg.EC2.UserDataMode = "default"
+
+	obsEnabled := true
+	ssmEndpoints := false
+	ssmPrivateDNS := true
+	cfg.Observability.Enabled = &obsEnabled
+	cfg.Observability.EnableSSMEndpoints = &ssmEndpoints
+	cfg.Observability.EnableSSMPrivateDNS = &ssmPrivateDNS
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "observability.enable_ssm_private_dns=true requires observability.enable_ssm_endpoints=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -70,6 +71,8 @@ module "app" {
   app_asg_cpu_target     = {{ .AppScaling.CPUTarget }}
 
   enable_observability = {{ .ObservabilityEnabled }}
+  enable_ssm_endpoints = {{ .ObservabilityEnableSSMEndpoints }}
+  enable_ssm_private_dns = {{ .ObservabilityEnableSSMPrivateDNS }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
 
@@ -242,15 +245,17 @@ output "recovery_db_runbook_name" {
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled   bool
-	RecoveryBackupApp      bool
-	RecoveryBackupDB       bool
-	RecoveryEnableRunbooks bool
-	AppUserDataB64         string
-	DBUserDataB64          string
-	AppExtraIngressHCL     string
-	DBExtraIngressHCL      string
-	ALBExtraIngressHCL     string
+	ObservabilityEnabled             bool
+	ObservabilityEnableSSMEndpoints  bool
+	ObservabilityEnableSSMPrivateDNS bool
+	RecoveryBackupApp                bool
+	RecoveryBackupDB                 bool
+	RecoveryEnableRunbooks           bool
+	AppUserDataB64                   string
+	DBUserDataB64                    string
+	AppExtraIngressHCL               string
+	DBExtraIngressHCL                string
+	ALBExtraIngressHCL               string
 }
 
 // Generate monta workspace Terraform completo para o workload ec2-app.
@@ -280,17 +285,29 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:              cfg,
-		ObservabilityEnabled:   cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		RecoveryBackupApp:      cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
-		RecoveryBackupDB:       cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
-		RecoveryEnableRunbooks: cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
-		AppUserDataB64:         encodeBase64(cfg.EC2.UserData),
-		DBUserDataB64:          encodeBase64(cfg.DB.UserData),
-		AppExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:      buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:     buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:                        cfg,
+		ObservabilityEnabled:             cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		ObservabilityEnableSSMEndpoints:  cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
+		ObservabilityEnableSSMPrivateDNS: cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
+		RecoveryBackupApp:                cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:                 cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks:           cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		AppExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:                buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
+
+	appUserData, err := sanitizePowerShellUserData(cfg.EC2.UserData)
+	if err != nil {
+		return fmt.Errorf("ec2.user_data: %w", err)
+	}
+	dbUserData, err := sanitizePowerShellUserData(cfg.DB.UserData)
+	if err != nil {
+		return fmt.Errorf("db.user_data: %w", err)
+	}
+	data.AppUserDataB64 = encodeBase64(appUserData)
+	data.DBUserDataB64 = encodeBase64(dbUserData)
+
 	if err := tpl.Execute(f, data); err != nil {
 		return fmt.Errorf("render template: %w", err)
 	}
@@ -323,6 +340,42 @@ func encodeBase64(v string) string {
 		return ""
 	}
 	return base64.StdEncoding.EncodeToString([]byte(v))
+}
+
+var (
+	powershellOpenTag  = regexp.MustCompile(`(?i)<\s*powershell\s*>`)
+	powershellCloseTag = regexp.MustCompile(`(?i)</\s*powershell\s*>`)
+)
+
+// sanitizePowerShellUserData garante payload sem wrapper duplicado para o modo merge.
+// Se vier encapsulado com <powershell>...</powershell>, remove o wrapper e retorna apenas o corpo.
+func sanitizePowerShellUserData(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	openIndexes := powershellOpenTag.FindAllStringIndex(trimmed, -1)
+	closeIndexes := powershellCloseTag.FindAllStringIndex(trimmed, -1)
+
+	if len(openIndexes) == 0 && len(closeIndexes) == 0 {
+		return trimmed, nil
+	}
+	if len(openIndexes) != 1 || len(closeIndexes) != 1 {
+		return "", fmt.Errorf("must contain at most one <powershell> wrapper")
+	}
+
+	open := openIndexes[0]
+	close := closeIndexes[0]
+	if open[0] != 0 || close[1] != len(trimmed) || open[1] > close[0] {
+		return "", fmt.Errorf("<powershell> wrapper must enclose the whole script")
+	}
+
+	body := strings.TrimSpace(trimmed[open[1]:close[0]])
+	if body == "" {
+		return "", fmt.Errorf("script inside <powershell> wrapper is empty")
+	}
+	return body, nil
 }
 
 // findRepoRoot sobe diretórios até localizar go.mod.

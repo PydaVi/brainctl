@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -84,9 +85,11 @@ type AppScalingConfig struct {
 
 // ObservabilityConfig controla dashboards, alarmes e SNS.
 type ObservabilityConfig struct {
-	Enabled          *bool  `yaml:"enabled"`
-	CPUHighThreshold int    `yaml:"cpu_high_threshold"`
-	AlertEmail       string `yaml:"alert_email"`
+	Enabled             *bool  `yaml:"enabled"`
+	CPUHighThreshold    int    `yaml:"cpu_high_threshold"`
+	AlertEmail          string `yaml:"alert_email"`
+	EnableSSMEndpoints  *bool  `yaml:"enable_ssm_endpoints"`
+	EnableSSMPrivateDNS *bool  `yaml:"enable_ssm_private_dns"`
 }
 
 // RecoveryConfig define snapshots automáticos e runbooks de recuperação.
@@ -210,6 +213,59 @@ func parseAppendIngressRule(o OverrideOp, path string) (IngressRule, error) {
 
 func validateUserDataMode(mode string) bool {
 	return mode == "default" || mode == "custom" || mode == "merge"
+}
+
+// ResolveUserDataFiles permite apontar user_data para arquivos, mantendo app.yaml enxuto.
+// Suporta:
+//   - file://caminho/relativo/ou/absoluto.ps1
+//   - caminho direto (relativo/absoluto) quando o arquivo existe
+func ResolveUserDataFiles(cfg *AppConfig, stackDir string) error {
+	appResolved, err := resolveUserDataValue(cfg.EC2.UserData, stackDir)
+	if err != nil {
+		return fmt.Errorf("ec2.user_data: %w", err)
+	}
+	dbResolved, err := resolveUserDataValue(cfg.DB.UserData, stackDir)
+	if err != nil {
+		return fmt.Errorf("db.user_data: %w", err)
+	}
+
+	cfg.EC2.UserData = appResolved
+	cfg.DB.UserData = dbResolved
+	return nil
+}
+
+func resolveUserDataValue(raw, stackDir string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", nil
+	}
+
+	if strings.Contains(v, "\n") {
+		return raw, nil
+	}
+
+	fromFilePrefix := strings.HasPrefix(v, "file://")
+	candidate := strings.TrimPrefix(v, "file://")
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(stackDir, candidate)
+	}
+
+	info, err := os.Stat(candidate)
+	if err != nil {
+		if fromFilePrefix {
+			return "", fmt.Errorf("file not found: %s", candidate)
+		}
+		return raw, nil
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("path points to directory, expected file: %s", candidate)
+	}
+
+	content, err := os.ReadFile(candidate)
+	if err != nil {
+		return "", fmt.Errorf("read file %s: %w", candidate, err)
+	}
+	return string(content), nil
 }
 
 // Validate aplica regras e defaults do contrato declarativo.
@@ -338,6 +394,14 @@ func (c *AppConfig) Validate() error {
 		enabled := true
 		c.Observability.Enabled = &enabled
 	}
+	if c.Observability.EnableSSMEndpoints == nil {
+		v := false
+		c.Observability.EnableSSMEndpoints = &v
+	}
+	if c.Observability.EnableSSMPrivateDNS == nil {
+		v := false
+		c.Observability.EnableSSMPrivateDNS = &v
+	}
 	if c.Observability.CPUHighThreshold == 0 {
 		c.Observability.CPUHighThreshold = 80
 	}
@@ -346,6 +410,12 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.Observability.AlertEmail != "" && !strings.Contains(c.Observability.AlertEmail, "@") {
 		return fmt.Errorf("observability.alert_email must be a valid email")
+	}
+	if c.Observability.EnableSSMEndpoints != nil && *c.Observability.EnableSSMEndpoints && (c.Observability.Enabled == nil || !*c.Observability.Enabled) {
+		return fmt.Errorf("observability.enable_ssm_endpoints=true requires observability.enabled=true")
+	}
+	if c.Observability.EnableSSMPrivateDNS != nil && *c.Observability.EnableSSMPrivateDNS && (c.Observability.EnableSSMEndpoints == nil || !*c.Observability.EnableSSMEndpoints) {
+		return fmt.Errorf("observability.enable_ssm_private_dns=true requires observability.enable_ssm_endpoints=true")
 	}
 
 	if c.Recovery.SnapshotTimeUTC == "" {

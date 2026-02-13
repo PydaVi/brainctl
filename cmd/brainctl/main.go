@@ -255,6 +255,10 @@ func loadRuntimeConfig(stackDir, file, overridesFile string) (*config.AppConfig,
 		return nil, err
 	}
 
+	if err := config.ResolveUserDataFiles(cfg, stackDir); err != nil {
+		return nil, err
+	}
+
 	if overridesFile != "" {
 		oPath := overridesFile
 		if !filepath.IsAbs(oPath) {

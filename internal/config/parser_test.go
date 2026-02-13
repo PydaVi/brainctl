@@ -118,3 +118,47 @@ func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func minimalValidConfig() *AppConfig {
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "ec2-app"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-app"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	cfg.EC2.InstanceType = "t3.micro"
+	cfg.EC2.UserDataMode = "default"
+	return cfg
+}
+
+func TestValidate_RecoveryDrillRequiresRecoveryEnabled(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	obsEnabled := true
+	cfg.Observability.Enabled = &obsEnabled
+	cfg.Recovery.Drill.Enabled = true
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "recovery.drill.enabled=true requires recovery.enabled=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_RecoveryDrillRegisterTGRequiresLB(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	obsEnabled := true
+	cfg.Observability.Enabled = &obsEnabled
+	cfg.Recovery.Enabled = true
+	cfg.DB.Enabled = true
+	cfg.Recovery.Drill.Enabled = true
+	v := true
+	cfg.Recovery.Drill.RegisterToTargetGroup = &v
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "recovery.drill.register_to_target_group=true requires lb.enabled=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

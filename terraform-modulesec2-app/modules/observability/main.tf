@@ -136,6 +136,66 @@ resource "aws_cloudwatch_dashboard" "app_asg" {
           period  = 60
           metrics = [["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
         }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 12
+        height = 6
+        properties = {
+          title   = "ALB RequestCount"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 12
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP TG TargetResponseTime"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 18
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP TG 4XX"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 18
+        width  = 12
+        height = 6
+        properties = {
+          title   = "APP TG HealthyHostCount"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Maximum"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
+        }
       }
     ]
   })
@@ -351,6 +411,66 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_5xx_high" {
   statistic           = "Sum"
   threshold           = 5
   alarm_description   = "Target group da APP com aumento de erros 5XX"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = var.tg_arn_suffix
+  }
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "app_alb_request_count_low" {
+  count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-alb-request-count-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 5
+  metric_name         = "RequestCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "ALB com baixo volume de tráfego para APP"
+  treat_missing_data  = "breaching"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "app_tg_target_response_time_high" {
+  count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-target-response-time-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 2
+  alarm_description   = "Target group da APP com latência elevada"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = var.tg_arn_suffix
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "app_tg_4xx_high" {
+  count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-4xx-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HTTPCode_Target_4XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 20
+  alarm_description   = "Target group da APP com aumento de erros 4XX"
+  treat_missing_data  = "notBreaching"
   alarm_actions       = var.alarm_actions
   ok_actions          = var.alarm_actions
   dimensions = {

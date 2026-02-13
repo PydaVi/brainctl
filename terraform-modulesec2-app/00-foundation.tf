@@ -65,6 +65,16 @@ locals {
     }
     logs = {
       logs_collected = {
+        files = {
+          collect_list = [
+            {
+              file_path      = "C:\\inetpub\\logs\\LogFiles\\W3SVC*\\*.log"
+              log_group_name = local.cw_log_group_name
+              log_stream_name = "${local.app_instance_label}/iis"
+              timezone       = "UTC"
+            }
+          ]
+        }
         windows_events = {
           collect_list = [
             {

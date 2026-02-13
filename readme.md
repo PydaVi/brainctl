@@ -156,6 +156,10 @@ Get-Content C:\inetpub\wwwroot\index.html -Head 40
 
 > O bootstrap do CloudWatch Agent agora é **best-effort**: se o agente não existir na AMI, o script registra no `brainctl-userdata.log` e continua o restante do user data (ex.: instalação/configuração do IIS).
 
+Além dos eventos do Windows, a coleta padrão da APP inclui também logs do IIS (`C:\inetpub\logs\LogFiles\W3SVC*\*.log`) no mesmo CloudWatch Log Group.
+
+Os dashboards/alarmes da APP em modo ASG+LB também incluem métricas de jornada de tráfego: `RequestCount`, `TargetResponseTime`, `HTTPCode_Target_4XX_Count` e `HTTPCode_Target_5XX_Count`.
+
 ---
 
 ## Overrides suportados no MVP

@@ -201,3 +201,34 @@ Se você quiser usar esse projeto como case, aqui vai um resumo em tom de currí
 ## Resumo
 
 O **brainctl** não é só uma ferramenta de automação: é um passo concreto para tratar infraestrutura como produto — com **padrão, escala e experiência de uso**.
+
+---
+
+## Sprint 2: Recovery com restore completo + DR drill mensal
+
+O bloco `recovery` agora suporta **DR drill mensal** além de snapshots e runbooks.
+
+Exemplo:
+
+```yaml
+recovery:
+  enabled: true
+  snapshot_time_utc: "03:00"
+  retention_days: 7
+  backup_app: true
+  backup_db: true
+  enable_runbooks: true
+  drill:
+    enabled: true
+    schedule_expression: "cron(0 3 1 * ? *)"
+    register_to_target_group: false
+```
+
+Guardrails de validação para `recovery.drill.enabled=true`:
+- `recovery.enabled=true`
+- `recovery.enable_runbooks=true`
+- `recovery.backup_app=true`
+- `observability.enabled=true`
+- `lb.enabled=true` quando `register_to_target_group=true`
+
+Novo output: `recovery_drill_schedule_name`.

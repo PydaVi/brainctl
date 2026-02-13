@@ -304,3 +304,21 @@ variable "recovery_enable_runbooks" {
   type        = bool
   default     = true
 }
+
+variable "recovery_drill_enabled" {
+  description = "Habilita DR drill mensal automatizado"
+  type        = bool
+  default     = false
+}
+
+variable "recovery_drill_schedule_expression" {
+  description = "Expressão cron/rate do DR drill no EventBridge Scheduler"
+  type        = string
+  default     = "cron(0 3 1 * ? *)"
+}
+
+variable "recovery_drill_register_to_target_group" {
+  description = "Registra a instância restaurada no target group durante drill"
+  type        = bool
+  default     = false
+}

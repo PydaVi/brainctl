@@ -82,6 +82,9 @@ module "app" {
   recovery_backup_app          = {{ .RecoveryBackupApp }}
   recovery_backup_db           = {{ .RecoveryBackupDB }}
   recovery_enable_runbooks     = {{ .RecoveryEnableRunbooks }}
+  recovery_drill_enabled       = {{ .Recovery.Drill.Enabled }}
+  recovery_drill_schedule_expression = "{{ .Recovery.Drill.ScheduleExpression }}"
+  recovery_drill_register_to_target_group = {{ .RecoveryDrillRegisterToTargetGroup }}
 
   app_extra_ingress_rules = [{{ .AppExtraIngressHCL }}]
   db_extra_ingress_rules  = [{{ .DBExtraIngressHCL }}]
@@ -240,22 +243,28 @@ output "recovery_db_runbook_name" {
   value       = module.app.recovery_db_runbook_name
   description = "Automation runbook name for DB recovery"
 }
+
+output "recovery_drill_schedule_name" {
+  value       = module.app.recovery_drill_schedule_name
+  description = "EventBridge Scheduler name for monthly DR drill"
+}
 `
 
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled             bool
-	ObservabilityEnableSSMEndpoints  bool
-	ObservabilityEnableSSMPrivateDNS bool
-	RecoveryBackupApp                bool
-	RecoveryBackupDB                 bool
-	RecoveryEnableRunbooks           bool
-	AppUserDataB64                   string
-	DBUserDataB64                    string
-	AppExtraIngressHCL               string
-	DBExtraIngressHCL                string
-	ALBExtraIngressHCL               string
+	ObservabilityEnabled               bool
+	ObservabilityEnableSSMEndpoints    bool
+	ObservabilityEnableSSMPrivateDNS   bool
+	RecoveryBackupApp                  bool
+	RecoveryBackupDB                   bool
+	RecoveryEnableRunbooks             bool
+	RecoveryDrillRegisterToTargetGroup bool
+	AppUserDataB64                     string
+	DBUserDataB64                      string
+	AppExtraIngressHCL                 string
+	DBExtraIngressHCL                  string
+	ALBExtraIngressHCL                 string
 }
 
 // Generate monta workspace Terraform completo para o workload ec2-app.
@@ -285,16 +294,17 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:                        cfg,
-		ObservabilityEnabled:             cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		ObservabilityEnableSSMEndpoints:  cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
-		ObservabilityEnableSSMPrivateDNS: cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
-		RecoveryBackupApp:                cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
-		RecoveryBackupDB:                 cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
-		RecoveryEnableRunbooks:           cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
-		AppExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:                buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:                          cfg,
+		ObservabilityEnabled:               cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		ObservabilityEnableSSMEndpoints:    cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
+		ObservabilityEnableSSMPrivateDNS:   cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
+		RecoveryBackupApp:                  cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:                   cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks:             cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		RecoveryDrillRegisterToTargetGroup: cfg.Recovery.Drill.RegisterToTargetGroup != nil && *cfg.Recovery.Drill.RegisterToTargetGroup,
+		AppExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:                  buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
 
 	appUserData, err := sanitizePowerShellUserData(cfg.EC2.UserData)

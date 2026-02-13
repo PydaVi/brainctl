@@ -183,3 +183,8 @@ output "recovery_db_runbook_name" {
   description = "Nome do runbook de recuperação da DB"
   value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? module.recovery.recovery_db_runbook_name : null
 }
+
+output "recovery_drill_schedule_name" {
+  description = "Nome do schedule mensal de DR drill"
+  value       = var.enable_recovery_mode && var.recovery_drill_enabled ? module.recovery.recovery_drill_schedule_name : null
+}

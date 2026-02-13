@@ -13,3 +13,7 @@ output "recovery_app_runbook_name" {
 output "recovery_db_runbook_name" {
   value = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? aws_ssm_document.recovery_db_runbook[0].name : null
 }
+
+output "recovery_drill_schedule_name" {
+  value = var.enable_recovery_mode && var.recovery_drill_enabled ? aws_scheduler_schedule.recovery_app_drill[0].name : null
+}

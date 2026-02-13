@@ -79,6 +79,9 @@ module "app" {
   recovery_backup_app          = {{ .RecoveryBackupApp }}
   recovery_backup_db           = {{ .RecoveryBackupDB }}
   recovery_enable_runbooks     = {{ .RecoveryEnableRunbooks }}
+  recovery_drill_enabled       = {{ .Recovery.Drill.Enabled }}
+  recovery_drill_schedule_expression = "{{ .Recovery.Drill.ScheduleExpression }}"
+  recovery_drill_register_to_target_group = {{ .RecoveryDrillRegisterToTargetGroup }}
 
   app_extra_ingress_rules = [{{ .AppExtraIngressHCL }}]
   db_extra_ingress_rules  = [{{ .DBExtraIngressHCL }}]
@@ -236,6 +239,11 @@ output "recovery_app_runbook_name" {
 output "recovery_db_runbook_name" {
   value       = module.app.recovery_db_runbook_name
   description = "Automation runbook name for DB recovery"
+}
+
+output "recovery_drill_schedule_name" {
+  value       = module.app.recovery_drill_schedule_name
+  description = "EventBridge Scheduler name for monthly DR drill"
 }
 `
 

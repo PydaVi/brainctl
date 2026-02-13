@@ -94,12 +94,19 @@ type ObservabilityConfig struct {
 
 // RecoveryConfig define snapshots automáticos e runbooks de recuperação.
 type RecoveryConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	SnapshotTimeUTC string `yaml:"snapshot_time_utc"`
-	RetentionDays   int    `yaml:"retention_days"`
-	BackupApp       *bool  `yaml:"backup_app"`
-	BackupDB        *bool  `yaml:"backup_db"`
-	EnableRunbooks  *bool  `yaml:"enable_runbooks"`
+	Enabled         bool                `yaml:"enabled"`
+	SnapshotTimeUTC string              `yaml:"snapshot_time_utc"`
+	RetentionDays   int                 `yaml:"retention_days"`
+	BackupApp       *bool               `yaml:"backup_app"`
+	BackupDB        *bool               `yaml:"backup_db"`
+	EnableRunbooks  *bool               `yaml:"enable_runbooks"`
+	Drill           RecoveryDrillConfig `yaml:"drill"`
+}
+
+type RecoveryDrillConfig struct {
+	Enabled               bool   `yaml:"enabled"`
+	ScheduleExpression    string `yaml:"schedule_expression"`
+	RegisterToTargetGroup *bool  `yaml:"register_to_target_group"`
 }
 
 type RuntimeOverrides struct {
@@ -453,8 +460,35 @@ func (c *AppConfig) Validate() error {
 		v := true
 		c.Recovery.EnableRunbooks = &v
 	}
+	if c.Recovery.Drill.ScheduleExpression == "" {
+		c.Recovery.Drill.ScheduleExpression = "cron(0 3 1 * ? *)"
+	}
+	if c.Recovery.Drill.RegisterToTargetGroup == nil {
+		v := false
+		c.Recovery.Drill.RegisterToTargetGroup = &v
+	}
 	if c.Recovery.Enabled && *c.Recovery.BackupDB && !c.DB.Enabled {
 		return fmt.Errorf("recovery.backup_db=true requires db.enabled=true")
+	}
+	if c.Recovery.Drill.Enabled {
+		if !c.Recovery.Enabled {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.enabled=true")
+		}
+		if c.Recovery.EnableRunbooks == nil || !*c.Recovery.EnableRunbooks {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.enable_runbooks=true")
+		}
+		if c.Recovery.BackupApp == nil || !*c.Recovery.BackupApp {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.backup_app=true")
+		}
+		if c.Observability.Enabled == nil || !*c.Observability.Enabled {
+			return fmt.Errorf("recovery.drill.enabled=true requires observability.enabled=true")
+		}
+		if c.Recovery.Drill.ScheduleExpression == "" {
+			return fmt.Errorf("recovery.drill.schedule_expression is required when recovery.drill.enabled=true")
+		}
+		if c.Recovery.Drill.RegisterToTargetGroup != nil && *c.Recovery.Drill.RegisterToTargetGroup && !c.LB.Enabled {
+			return fmt.Errorf("recovery.drill.register_to_target_group=true requires lb.enabled=true")
+		}
 	}
 
 	return nil

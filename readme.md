@@ -162,6 +162,22 @@ Os dashboards/alarmes da APP em modo ASG+LB também incluem métricas de jornada
 
 ---
 
+---
+
+### Recovery completo (Sprint 2)
+
+Status do roadmap: **Sprint 2 em execução**.
+
+Escopo consolidado desta etapa:
+
+1. localizar snapshot mais recente por tags (`App`, `Environment`, `BackupScope`),
+2. criar volume restaurado na AZ desejada,
+3. subir nova instância de recovery,
+4. anexar volume restaurado,
+5. validar health de instância (`InstanceStatus` e `SystemStatus` = `ok`).
+
+Planejamento adicional: DR drill automatizado mensal para validação recorrente de RTO/RPO.
+
 ## Overrides suportados no MVP
 
 `overrides.yaml` é opcional e permite ajustes controlados sem comprometer o contrato principal.

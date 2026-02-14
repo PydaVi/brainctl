@@ -100,8 +100,8 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_target_group_attachment" "app_attach" {
-  count            = var.enable_lb && !var.enable_app_asg ? 1 : 0
+  count            = var.enable_lb && !var.enable_app_asg ? var.app_instance_count : 0
   target_group_arn = aws_lb_target_group.app_tg[0].arn
-  target_id        = aws_instance.app[0].id
+  target_id        = aws_instance.app[count.index].id
   port             = var.app_port
 }

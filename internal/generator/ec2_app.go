@@ -41,6 +41,7 @@ module "app" {
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
   instance_type       = "{{ .EC2.InstanceType }}"
+  app_instance_count  = {{ .LB.InstanceCount }}
   app_ami_id          = "{{ .EC2.AMI }}"
   app_user_data_mode  = "{{ .EC2.UserDataMode }}"
   app_user_data_base64 = "{{ .AppUserDataB64 }}"
@@ -104,6 +105,16 @@ output "private_ip" {
 output "public_ip" {
   value       = module.app.public_ip
   description = "EC2 public ip"
+}
+
+output "app_instance_ids" {
+  value       = module.app.app_instance_ids
+  description = "APP EC2 instance ids when ASG is disabled"
+}
+
+output "app_private_ips" {
+  value       = module.app.app_private_ips
+  description = "APP EC2 private ips when ASG is disabled"
 }
 
 output "app_asg_name" {

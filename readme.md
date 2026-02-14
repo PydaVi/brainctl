@@ -121,6 +121,7 @@ lb:
   subnet_ids: [subnet-a, subnet-b]
   listener_port: 80
   target_port: 80
+  instance_count: 1
 
 app_scaling:
   enabled: true
@@ -156,6 +157,8 @@ recovery:
 
 Algumas regras aplicadas automaticamente:
 - `app_scaling.enabled=true` exige `lb.enabled=true`;
+- `lb.instance_count` só vale para modo sem ASG (deve ser `1` quando `app_scaling.enabled=true`);
+- `lb.instance_count>1` exige `lb.enabled=true`;
 - `recovery.backup_db=true` exige `db.enabled=true`;
 - `recovery.drill.enabled=true` exige:
   - `recovery.enabled=true`

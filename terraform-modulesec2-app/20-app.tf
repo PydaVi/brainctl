@@ -37,10 +37,10 @@ resource "aws_security_group" "app_sg" {
 }
 
 resource "aws_instance" "app" {
-  count         = var.enable_app_asg ? 0 : 1
+  count         = var.enable_app_asg ? 0 : var.app_instance_count
   ami           = local.resolved_app_ami
   instance_type = var.instance_type
-  subnet_id     = var.enable_app_asg ? null : var.subnet_id
+  subnet_id     = var.enable_app_asg ? null : local.app_instance_subnet_ids[count.index % length(local.app_instance_subnet_ids)]
 
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 

@@ -86,6 +86,12 @@ variable "instance_type" {
   type        = string
 }
 
+variable "app_instance_count" {
+  description = "Quantidade de instâncias APP quando ASG estiver desabilitado"
+  type        = number
+  default     = 1
+}
+
 # ----------------------------
 # Compute - DB (opcional)
 # ----------------------------

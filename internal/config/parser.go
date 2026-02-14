@@ -66,12 +66,13 @@ type DBConfig struct {
 
 // LBConfig define parâmetros de load balancer.
 type LBConfig struct {
-	Enabled      bool     `yaml:"enabled"`
-	Scheme       string   `yaml:"scheme"`
-	SubnetIDs    []string `yaml:"subnet_ids"`
-	ListenerPort int      `yaml:"listener_port"`
-	TargetPort   int      `yaml:"target_port"`
-	AllowedCIDR  string   `yaml:"allowed_cidr"`
+	Enabled       bool     `yaml:"enabled"`
+	Scheme        string   `yaml:"scheme"`
+	SubnetIDs     []string `yaml:"subnet_ids"`
+	ListenerPort  int      `yaml:"listener_port"`
+	TargetPort    int      `yaml:"target_port"`
+	AllowedCIDR   string   `yaml:"allowed_cidr"`
+	InstanceCount int      `yaml:"instance_count"`
 }
 
 type AppScalingConfig struct {
@@ -339,6 +340,13 @@ func (c *AppConfig) Validate() error {
 		}
 	}
 
+	if c.LB.InstanceCount == 0 {
+		c.LB.InstanceCount = 1
+	}
+	if c.LB.InstanceCount < 1 {
+		return fmt.Errorf("lb.instance_count must be >= 1")
+	}
+
 	if c.LB.Enabled {
 		if c.LB.Scheme == "" {
 			c.LB.Scheme = "private"
@@ -395,6 +403,13 @@ func (c *AppConfig) Validate() error {
 		if c.AppScaling.DesiredCapacity < c.AppScaling.MinSize || c.AppScaling.DesiredCapacity > c.AppScaling.MaxSize {
 			return fmt.Errorf("app_scaling.desired_capacity must be between min_size and max_size")
 		}
+		if c.LB.InstanceCount != 1 {
+			return fmt.Errorf("lb.instance_count cannot be used when app_scaling.enabled=true")
+		}
+	}
+
+	if !c.AppScaling.Enabled && c.LB.InstanceCount > 1 && !c.LB.Enabled {
+		return fmt.Errorf("lb.instance_count>1 requires lb.enabled=true")
 	}
 
 	if c.Observability.Enabled == nil {

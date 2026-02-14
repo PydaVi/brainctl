@@ -16,6 +16,16 @@ output "public_ip" {
   description = "Public IP da instância EC2 da aplicação (quando ASG estiver desabilitado)"
   value       = var.enable_app_asg ? null : aws_instance.app[0].public_ip
 }
+output "app_instance_ids" {
+  description = "IDs das instâncias EC2 da aplicação quando ASG estiver desabilitado"
+  value       = var.enable_app_asg ? [] : aws_instance.app[*].id
+}
+
+output "app_private_ips" {
+  description = "Private IPs das instâncias EC2 da aplicação quando ASG estiver desabilitado"
+  value       = var.enable_app_asg ? [] : aws_instance.app[*].private_ip
+}
+
 
 output "app_asg_name" {
   description = "Nome do Auto Scaling Group da aplicação"

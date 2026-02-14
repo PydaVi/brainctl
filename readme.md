@@ -78,6 +78,7 @@ stacks/dev|prod             # contratos por ambiente (app.yaml + scripts)
 - snapshots diários via DLM;
 - runbooks de recuperação;
 - **restore completo da APP** (cria volume restaurado, sobe instância de recuperação e anexa volume);
+- **restore completo da DB em modo EC2** (mesmo fluxo de volume + instância + attach para plano de continuidade);
 - **DR drill mensal** com EventBridge Scheduler disparando automação SSM.
 
 ---

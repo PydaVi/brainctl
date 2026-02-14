@@ -70,7 +70,7 @@ stacks/dev|prod             # contratos por ambiente (app.yaml + scripts)
 - Auto Scaling Group para camada APP com política por CPU.
 
 ### C) Observabilidade operacional
-- dashboards e alarmes de CloudWatch;
+- dashboards e alarmes de CloudWatch (incluindo painel/alarmes para RDS quando `db.mode=rds`);
 - SNS para alertas por e-mail;
 - suporte a Session Manager e endpoints privados de SSM.
 

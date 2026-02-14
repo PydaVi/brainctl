@@ -7,11 +7,11 @@ output "app_dashboard_url" {
 }
 
 output "db_dashboard_name" {
-  value = var.enable_observability && var.enable_db ? aws_cloudwatch_dashboard.db[0].dashboard_name : null
+  value = var.enable_observability && var.enable_db ? (var.db_mode == "rds" ? aws_cloudwatch_dashboard.db_rds[0].dashboard_name : aws_cloudwatch_dashboard.db_ec2[0].dashboard_name) : null
 }
 
 output "db_dashboard_url" {
-  value = var.enable_observability && var.enable_db ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db[0].dashboard_name}" : null
+  value = var.enable_observability && var.enable_db ? (var.db_mode == "rds" ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db_rds[0].dashboard_name}" : "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db_ec2[0].dashboard_name}") : null
 }
 
 output "alarm_names" {
@@ -23,6 +23,9 @@ output "alarm_names" {
     var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_alb_request_count_low[0].alarm_name : null) : null,
     var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_target_response_time_high[0].alarm_name : null) : null,
     var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_4xx_high[0].alarm_name : null) : null,
-    var.enable_db ? aws_cloudwatch_metric_alarm.db_cpu_high[0].alarm_name : null,
+    var.enable_db && var.db_mode == "ec2" ? aws_cloudwatch_metric_alarm.db_ec2_cpu_high[0].alarm_name : null,
+    var.enable_db && var.db_mode == "rds" ? aws_cloudwatch_metric_alarm.db_rds_cpu_high[0].alarm_name : null,
+    var.enable_db && var.db_mode == "rds" ? aws_cloudwatch_metric_alarm.db_rds_free_storage_low[0].alarm_name : null,
+    var.enable_db && var.db_mode == "rds" ? aws_cloudwatch_metric_alarm.db_rds_connections_high[0].alarm_name : null,
   ]) : []
 }

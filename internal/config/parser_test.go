@@ -199,3 +199,33 @@ func TestValidate_LBInstanceCountGreaterThanOneRequiresLB(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestValidate_DBModeRDSRequiresPassword(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.DB.Enabled = true
+	cfg.DB.Mode = "rds"
+	cfg.Infrastructure.SubnetIDs = []string{"subnet-a", "subnet-b"}
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "db.rds.password is required when db.mode=rds" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_RecoveryBackupDBRequiresEC2Mode(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.DB.Enabled = true
+	cfg.DB.Mode = "rds"
+	cfg.Infrastructure.SubnetIDs = []string{"subnet-a", "subnet-b"}
+	cfg.DB.RDS.Password = "super-secret"
+	cfg.Recovery.Enabled = true
+	v := true
+	cfg.Recovery.BackupDB = &v
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "recovery.backup_db=true requires db.mode=ec2" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

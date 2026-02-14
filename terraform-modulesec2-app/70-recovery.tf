@@ -6,7 +6,7 @@ module "recovery" {
 
   name                     = var.name
   environment              = var.environment
-  enable_db                = var.enable_db
+  enable_db                = var.enable_db && var.db_mode == "ec2"
   enable_recovery_mode     = var.enable_recovery_mode
   recovery_snapshot_time_utc = var.recovery_snapshot_time_utc
   recovery_retention_days  = var.recovery_retention_days

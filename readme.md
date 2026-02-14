@@ -61,7 +61,7 @@ stacks/dev|prod             # contratos por ambiente (app.yaml + scripts)
 
 ### A) Provisionamento base EC2
 - Instância de aplicação;
-- Instância de banco opcional;
+- Camada de banco opcional com modo `ec2` (legado) ou `rds`;
 - Security Groups padrão e regras extras via override controlado.
 
 ### B) Load Balancer e escalabilidade
@@ -112,8 +112,21 @@ ec2:
 
 db:
   enabled: true
+  mode: ec2 # ec2 | rds
   instance_type: t3.micro
   port: 1433
+  rds:
+    instance_class: db.t3.micro
+    engine: postgres
+    engine_version: "16.3"
+    allocated_storage: 20
+    storage_type: gp3
+    multi_az: false
+    db_name: appdb
+    username: brainctl
+    password: "troque-esta-senha"
+    backup_retention_days: 7
+    publicly_accessible: false
 
 lb:
   enabled: true
@@ -160,6 +173,8 @@ Algumas regras aplicadas automaticamente:
 - `lb.instance_count` só vale para modo sem ASG (deve ser `1` quando `app_scaling.enabled=true`);
 - `lb.instance_count>1` exige `lb.enabled=true`;
 - `recovery.backup_db=true` exige `db.enabled=true`;
+- `recovery.backup_db=true` exige `db.mode=ec2` (backup de DB via snapshot EBS);
+- `db.mode=rds` exige `db.rds.password`;
 - `recovery.drill.enabled=true` exige:
   - `recovery.enabled=true`
   - `recovery.enable_runbooks=true`

@@ -147,24 +147,27 @@ resource "aws_ssm_document" "recovery_app_runbook" {
       }
       SubnetId = {
         type        = "String"
+        default     = "${var.app_recovery_subnet_id}"
         description = "Subnet para instância restaurada"
       }
       SecurityGroupId = {
         type        = "String"
+        default     = "${var.app_recovery_security_group_id}"
         description = "Security group para instância restaurada"
       }
       ImageId = {
         type        = "String"
+        default     = "${var.app_recovery_ami_id}"
         description = "AMI para instância restaurada"
       }
       InstanceType = {
         type        = "String"
-        default     = "t3.micro"
+        default     = "${var.app_recovery_instance_type}"
         description = "Tipo da instância restaurada"
       }
       IamInstanceProfileName = {
         type        = "String"
-        default     = ""
+        default     = "${var.app_recovery_instance_profile_name}"
         description = "Instance profile (opcional)"
       }
       RegisterToTargetGroup = {
@@ -303,24 +306,27 @@ resource "aws_ssm_document" "recovery_db_runbook" {
       }
       SubnetId = {
         type        = "String"
+        default     = "${var.db_recovery_subnet_id}"
         description = "Subnet para instância restaurada"
       }
       SecurityGroupId = {
         type        = "String"
+        default     = "${var.db_recovery_security_group_id}"
         description = "Security group para instância restaurada"
       }
       ImageId = {
         type        = "String"
+        default     = "${var.db_recovery_ami_id}"
         description = "AMI para instância restaurada"
       }
       InstanceType = {
         type        = "String"
-        default     = "t3.micro"
+        default     = "${var.db_recovery_instance_type}"
         description = "Tipo da instância restaurada"
       }
       IamInstanceProfileName = {
         type        = "String"
-        default     = ""
+        default     = "${var.db_recovery_instance_profile_name}"
         description = "Instance profile (opcional)"
       }
       RegisterToTargetGroup = {
@@ -384,6 +390,43 @@ resource "aws_ssm_document" "recovery_db_runbook" {
           }]
         }
         outputs = [{ Name = "VolumeId", Selector = "$.VolumeId", Type = "String" }]
+      },
+      {
+        name   = "LaunchRecoveredDBInstance"
+        action = "aws:executeAwsApi"
+        inputs = {
+          Service           = "ec2"
+          Api               = "RunInstances"
+          ImageId           = "{{ImageId}}"
+          InstanceType      = "{{InstanceType}}"
+          MinCount          = 1
+          MaxCount          = 1
+          SubnetId          = "{{SubnetId}}"
+          SecurityGroupIds  = ["{{SecurityGroupId}}"]
+          IamInstanceProfile = { Name = "{{IamInstanceProfileName}}" }
+          TagSpecifications = [{
+            ResourceType = "instance"
+            Tags = [
+              { Key = "Name", Value = "${var.name}-${var.environment}-db-drill" },
+              { Key = "ManagedBy", Value = "brainctl" },
+              { Key = "App", Value = var.name },
+              { Key = "Environment", Value = var.environment },
+              { Key = "Role", Value = "db-recovery" }
+            ]
+          }]
+        }
+        outputs = [{ Name = "InstanceId", Selector = "$.Instances[0].InstanceId", Type = "String" }]
+      },
+      {
+        name   = "AttachRecoveredDBVolume"
+        action = "aws:executeAwsApi"
+        inputs = {
+          Service    = "ec2"
+          Api        = "AttachVolume"
+          Device     = "/dev/sdf"
+          InstanceId = "{{LaunchRecoveredDBInstance.InstanceId}}"
+          VolumeId   = "{{CreateDBRecoveryVolume.VolumeId}}"
+        }
       }
     ]
   })

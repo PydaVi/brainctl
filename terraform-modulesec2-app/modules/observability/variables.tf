@@ -14,6 +14,15 @@ variable "enable_lb" {
   type = bool
 }
 
+variable "db_mode" {
+  type = string
+}
+
+variable "db_rds_identifier" {
+  type    = string
+  default = null
+}
+
 variable "name" {
   type = string
 }

@@ -162,3 +162,70 @@ func TestValidate_RecoveryDrillRegisterTGRequiresLB(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestValidate_LBInstanceCountDefault(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	if cfg.LB.InstanceCount != 1 {
+		t.Fatalf("expected lb.instance_count default=1, got %d", cfg.LB.InstanceCount)
+	}
+}
+
+func TestValidate_LBInstanceCountWithASGIsInvalid(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.LB.Enabled = true
+	cfg.LB.SubnetIDs = []string{"subnet-a", "subnet-b"}
+	cfg.LB.InstanceCount = 2
+	cfg.AppScaling.Enabled = true
+	cfg.AppScaling.SubnetIDs = []string{"subnet-a", "subnet-b"}
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "lb.instance_count cannot be used when app_scaling.enabled=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_LBInstanceCountGreaterThanOneRequiresLB(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.LB.InstanceCount = 2
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "lb.instance_count>1 requires lb.enabled=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_DBModeRDSRequiresPassword(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.DB.Enabled = true
+	cfg.DB.Mode = "rds"
+	cfg.Infrastructure.SubnetIDs = []string{"subnet-a", "subnet-b"}
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "db.rds.password is required when db.mode=rds" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_RecoveryBackupDBRequiresEC2Mode(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.DB.Enabled = true
+	cfg.DB.Mode = "rds"
+	cfg.Infrastructure.SubnetIDs = []string{"subnet-a", "subnet-b"}
+	cfg.DB.RDS.Password = "super-secret"
+	cfg.Recovery.Enabled = true
+	v := true
+	cfg.Recovery.BackupDB = &v
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "recovery.backup_db=true requires db.mode=ec2" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

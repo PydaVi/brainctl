@@ -71,3 +71,29 @@ variable "app_recovery_target_group_arn" {
   type    = string
   default = ""
 }
+
+
+variable "db_recovery_subnet_id" {
+  type    = string
+  default = ""
+}
+
+variable "db_recovery_security_group_id" {
+  type    = string
+  default = ""
+}
+
+variable "db_recovery_ami_id" {
+  type    = string
+  default = ""
+}
+
+variable "db_recovery_instance_type" {
+  type    = string
+  default = ""
+}
+
+variable "db_recovery_instance_profile_name" {
+  type    = string
+  default = ""
+}

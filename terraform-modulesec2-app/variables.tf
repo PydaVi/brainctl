@@ -86,13 +86,30 @@ variable "instance_type" {
   type        = string
 }
 
+variable "app_instance_count" {
+  description = "Quantidade de instâncias APP quando ASG estiver desabilitado"
+  type        = number
+  default     = 1
+}
+
 # ----------------------------
 # Compute - DB (opcional)
 # ----------------------------
 variable "enable_db" {
-  description = "Habilita a criação da EC2 de banco (db) + SG de banco"
+  description = "Habilita a camada de banco"
   type        = bool
   default     = true
+}
+
+variable "db_mode" {
+  description = "Modo da camada de banco: ec2 ou rds"
+  type        = string
+  default     = "ec2"
+
+  validation {
+    condition     = contains(["ec2", "rds"], var.db_mode)
+    error_message = "db_mode must be one of: ec2, rds"
+  }
 }
 
 variable "db_extra_ingress_rules" {
@@ -141,6 +158,74 @@ variable "db_port" {
   description = "Porta do banco permitida do SG da APP para o SG do DB (ex: 1433 SQL Server)"
   type        = number
   default     = 1433
+}
+
+
+variable "db_rds_instance_class" {
+  description = "Classe da instância RDS (ex: db.t3.micro)"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_rds_engine" {
+  description = "Engine do RDS"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_rds_engine_version" {
+  description = "Versão da engine do RDS"
+  type        = string
+  default     = "16.3"
+}
+
+variable "db_rds_allocated_storage" {
+  description = "Armazenamento inicial em GB do RDS"
+  type        = number
+  default     = 20
+}
+
+variable "db_rds_storage_type" {
+  description = "Tipo de storage do RDS"
+  type        = string
+  default     = "gp3"
+}
+
+variable "db_rds_multi_az" {
+  description = "Habilita Multi-AZ no RDS"
+  type        = bool
+  default     = false
+}
+
+variable "db_rds_db_name" {
+  description = "Nome inicial do banco no RDS"
+  type        = string
+  default     = "appdb"
+}
+
+variable "db_rds_username" {
+  description = "Usuário master do RDS"
+  type        = string
+  default     = "brainctl"
+}
+
+variable "db_rds_password" {
+  description = "Senha master do RDS"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "db_rds_backup_retention_days" {
+  description = "Retenção de backup automático do RDS em dias"
+  type        = number
+  default     = 7
+}
+
+variable "db_rds_publicly_accessible" {
+  description = "Define se o RDS terá endpoint público"
+  type        = bool
+  default     = false
 }
 
 # ----------------------------

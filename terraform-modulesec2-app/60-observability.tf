@@ -16,7 +16,9 @@ module "observability" {
   app_instance_id = var.enable_app_asg ? null : aws_instance.app[0].id
   app_asg_name    = var.enable_app_asg ? aws_autoscaling_group.app[0].name : null
 
-  db_instance_id = var.enable_db ? aws_instance.db[0].id : null
+  db_mode        = var.db_mode
+  db_instance_id = var.enable_db && var.db_mode == "ec2" ? aws_instance.db[0].id : null
+  db_rds_identifier = var.enable_db && var.db_mode == "rds" ? aws_db_instance.db[0].identifier : null
 
   alb_arn_suffix = var.enable_lb ? aws_lb.app_alb[0].arn_suffix : null
   tg_arn_suffix  = var.enable_lb ? aws_lb_target_group.app_tg[0].arn_suffix : null

@@ -6,7 +6,7 @@ module "recovery" {
 
   name                     = var.name
   environment              = var.environment
-  enable_db                = var.enable_db
+  enable_db                = var.enable_db && var.db_mode == "ec2"
   enable_recovery_mode     = var.enable_recovery_mode
   recovery_snapshot_time_utc = var.recovery_snapshot_time_utc
   recovery_retention_days  = var.recovery_retention_days
@@ -24,4 +24,10 @@ module "recovery" {
   app_recovery_instance_type         = var.instance_type
   app_recovery_instance_profile_name = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : ""
   app_recovery_target_group_arn      = var.enable_lb ? aws_lb_target_group.app_tg[0].arn : ""
+
+  db_recovery_subnet_id             = var.subnet_id
+  db_recovery_security_group_id     = var.enable_db && var.db_mode == "ec2" ? aws_security_group.db_sg[0].id : ""
+  db_recovery_ami_id                = local.resolved_db_ami
+  db_recovery_instance_type         = var.db_instance_type
+  db_recovery_instance_profile_name = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : ""
 }

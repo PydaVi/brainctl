@@ -41,6 +41,7 @@ module "app" {
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
   instance_type       = "{{ .EC2.InstanceType }}"
+  app_instance_count  = {{ .LB.InstanceCount }}
   app_ami_id          = "{{ .EC2.AMI }}"
   app_user_data_mode  = "{{ .EC2.UserDataMode }}"
   app_user_data_base64 = "{{ .AppUserDataB64 }}"
@@ -48,11 +49,24 @@ module "app" {
   allowed_rdp_cidr    = "0.0.0.0/0"
 
   enable_db           = {{ .DB.Enabled }}
+  db_mode             = "{{ .DB.Mode }}"
   db_instance_type    = "{{ .DB.InstanceType }}"
   db_ami_id           = "{{ .DB.AMI }}"
   db_user_data_mode   = "{{ .DB.UserDataMode }}"
   db_user_data_base64 = "{{ .DBUserDataB64 }}"
   db_port             = {{ .DB.Port }}
+
+  db_rds_instance_class        = "{{ .DB.RDS.InstanceClass }}"
+  db_rds_engine                = "{{ .DB.RDS.Engine }}"
+  db_rds_engine_version        = "{{ .DB.RDS.EngineVersion }}"
+  db_rds_allocated_storage     = {{ .DB.RDS.AllocatedStorage }}
+  db_rds_storage_type          = "{{ .DB.RDS.StorageType }}"
+  db_rds_multi_az              = {{ .DB.RDS.MultiAZ }}
+  db_rds_db_name               = "{{ .DB.RDS.DBName }}"
+  db_rds_username              = "{{ .DB.RDS.Username }}"
+  db_rds_password              = "{{ .DB.RDS.Password }}"
+  db_rds_backup_retention_days = {{ .DB.RDS.BackupRetentionDays }}
+  db_rds_publicly_accessible   = {{ .DB.RDS.PubliclyAccessible }}
 
   enable_lb        = {{ .LB.Enabled }}
   lb_scheme        = "{{ .LB.Scheme }}"
@@ -106,6 +120,16 @@ output "public_ip" {
   description = "EC2 public ip"
 }
 
+output "app_instance_ids" {
+  value       = module.app.app_instance_ids
+  description = "APP EC2 instance ids when ASG is disabled"
+}
+
+output "app_private_ips" {
+  value       = module.app.app_private_ips
+  description = "APP EC2 private ips when ASG is disabled"
+}
+
 output "app_asg_name" {
   value       = module.app.app_asg_name
   description = "App ASG name"
@@ -138,12 +162,12 @@ output "security_group_name" {
 
 output "db_instance_id" {
   value       = module.app.db_instance_id
-  description = "DB instance id"
+  description = "DB instance id (EC2 mode)"
 }
 
 output "db_private_ip" {
   value       = module.app.db_private_ip
-  description = "DB private ip"
+  description = "DB private ip (EC2 mode)"
 }
 
 output "db_security_group_id" {
@@ -154,6 +178,21 @@ output "db_security_group_id" {
 output "db_security_group_name" {
   value       = module.app.db_security_group_name
   description = "DB SG name"
+}
+
+output "db_rds_instance_id" {
+  value       = module.app.db_rds_instance_id
+  description = "DB instance id (RDS mode)"
+}
+
+output "db_rds_endpoint" {
+  value       = module.app.db_rds_endpoint
+  description = "RDS endpoint"
+}
+
+output "db_rds_port" {
+  value       = module.app.db_rds_port
+  description = "RDS port"
 }
 
 output "alb_dns_name" {

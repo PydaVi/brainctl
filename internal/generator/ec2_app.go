@@ -18,7 +18,7 @@ const mainTF = `
 terraform {
   required_version = ">= 1.6.0"
   backend "s3" {
-    bucket       = "brainctl-terraform-states"
+    bucket       = "pydavi-terraform-state"
     key          = "{{ .App.Name }}/{{ .App.Environment }}/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true

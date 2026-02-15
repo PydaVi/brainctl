@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	backendBucket = "brainctl-terraform-states"
+	backendBucket = "pydavi-terraform-state"
 )
 
 type runtimeContext struct {

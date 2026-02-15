@@ -8,11 +8,11 @@ app:
   region: us-east-1
 
 infrastructure:
-  vpc_id: vpc-0efe480ab7051b401
-  subnet_id: subnet-0816bd7998fc3436b
+  vpc_id: vpc-06de730431bfb7107
+  subnet_id: subnet-0ad9bdbfb62dcfcca
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
 
 ec2:
   instance_type: t3.micro
@@ -47,8 +47,8 @@ lb:
   enabled: true
   scheme: public
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
@@ -57,8 +57,8 @@ lb:
 app_scaling:
   enabled: false
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
   min_size: 2
   max_size: 4
   desired_capacity: 2

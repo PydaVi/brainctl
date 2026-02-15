@@ -7,9 +7,9 @@ Infraestrutura como contrato, não como improviso
 ## Sobre o projeto
 
 O **brainctl** é um projeto que nasceu de experiências reais trabalhando com infraestrutura corporativa em crescimento.
-Ele não tenta reinventar o Terraform nem substituir ferramentas existentes. A ideia é mais simples: criar uma camada que ajude times a padronizar infraestrutura, reduzir erros operacionais e aplicar segurança e observabilidade desde o início.
+Ele não tenta reinventar o Terraform nem substituir ferramentas existentes. A ideia é mais simples: estudar formas de ajudar times a padronizar infraestrutura, reduzir erros operacionais e aplicar segurança e observabilidade desde o início, sem precisar que todos fossem especialistas em terraform e gestão de IAC.
 
-Esse projeto também representa minha evolução profissional na direção de **Platform Engineering**, **Cloud Security** e **automação de infraestrutura orientada a produto**.
+Esse projeto também representa meu aprofundamento nos estudos de **Engenharia de Plataforma**, **Cloud Security** e **automação de infraestrutura orientada a produto**.
 
 ---
 
@@ -222,17 +222,6 @@ Exemplos:
 
 ---
 
-## O que esse projeto representa na minha carreira
-
-O brainctl não é só uma ferramenta. Ele representa algumas áreas que estou aprofundando profissionalmente:
-
-* Platform Engineering
-* Infraestrutura declarativa
-* Automação de governança
-* Cloud Security aplicada
-* Continuidade de negócio e DR
-* Padronização de operação
-
 Esse projeto também serve como laboratório para testar ideias que podem ser aplicadas em ambientes corporativos reais.
 
 ---
@@ -257,7 +246,7 @@ Direções que pretendo explorar:
 * melhoria de validações
 * integração com pipelines CI/CD
 * evolução da estratégia de DR
-* integração com práticas de segurança mais profundas
+* integração com práticas de segurança mais profundas, com novas automações de resposta a incidentes.
 
 ---
 

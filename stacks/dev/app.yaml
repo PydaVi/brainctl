@@ -82,4 +82,4 @@ recovery:
   drill:
     enabled: true
     schedule_expression: "cron(0 3 1 * ? *)"
-    register_to_target_group: true
+    register_to_target_group: false

@@ -17,7 +17,7 @@ infrastructure:
 ec2:
   instance_type: t3.micro
   os: windows-2022
-  ami: ""
+  ami: "ami-0fc40e7f26d89dac6"
   user_data_mode: merge
   user_data: file://scripts/app-user-data.ps1
   imds_v2_required: true
@@ -27,7 +27,7 @@ db:
   mode: ec2 # ec2 | rds
   instance_type: t3.micro
   port: 1433
-  ami: ""
+  ami: "ami-0fc40e7f26d89dac6"
   user_data_mode: default
   user_data: ""
   # rds:
@@ -52,10 +52,10 @@ lb:
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
-  instance_count: 1
+  instance_count: 2
 
 app_scaling:
-  enabled: true
+  enabled: false
   subnet_ids:
     - subnet-0816bd7998fc3436b
     - subnet-054b5772b4e01ad14
@@ -74,7 +74,7 @@ observability:
 
 recovery:
   enabled: true
-  snapshot_time_utc: "03:00"
+  snapshot_time_utc: "03:21"
   retention_days: 7
   backup_app: true
   backup_db: true
@@ -82,4 +82,4 @@ recovery:
   drill:
     enabled: true
     schedule_expression: "cron(0 3 1 * ? *)"
-    register_to_target_group: false
+    register_to_target_group: true

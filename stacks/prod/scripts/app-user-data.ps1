@@ -177,7 +177,61 @@ $pageHtml = @'
 '@
 
 $ErrorActionPreference = "Stop"
-Install-WindowsFeature -Name Web-Server -IncludeManagementTools
-New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
-Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $pageHtml -Encoding UTF8
-Restart-Service W3SVC
+
+# Log do bootstrap
+$logPath = "C:\ProgramData\brainctl-iis-setup.log"
+New-Item -ItemType Directory -Force -Path (Split-Path $logPath) | Out-Null
+Start-Transcript -Path $logPath -Append
+
+try {
+    Install-WindowsFeature -Name Web-Server -IncludeManagementTools | Out-Null
+
+    $webRoot = "C:\inetpub\wwwroot"
+    New-Item -ItemType Directory -Force -Path $webRoot | Out-Null
+
+    # --- Correção 1: desfaz encoding quebrado (Ã§ / â€¢ / â†’ etc) ---
+    $pageHtmlFixed = [System.Text.Encoding]::UTF8.GetString(
+        [System.Text.Encoding]::GetEncoding(1252).GetBytes($pageHtml)
+    )
+
+    # Gravar index.html em UTF-8 sem BOM
+    $indexPath = Join-Path $webRoot "index.html"
+    [System.IO.File]::WriteAllText($indexPath, $pageHtmlFixed, (New-Object System.Text.UTF8Encoding($false)))
+
+    # --- Correção 2: web.config com remoção de header duplicado + utf-8 ---
+    $webConfigContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <httpProtocol>
+      <customHeaders>
+        <remove name="Content-Type" />
+        <add name="Content-Type" value="text/html; charset=utf-8" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>
+"@
+
+    $webConfigPath = Join-Path $webRoot "web.config"
+    [System.IO.File]::WriteAllText($webConfigPath, $webConfigContent, (New-Object System.Text.UTF8Encoding($false)))
+
+    # (Opcional) garantir que o Default Web Site aponte para o webroot esperado
+    Import-Module WebAdministration
+    Set-ItemProperty "IIS:\Sites\Default Web Site" -Name physicalPath -Value $webRoot
+
+    # Reinicia IIS de forma confiável
+    iisreset | Out-Null
+
+    # Validação simples sem depender do motor do IE
+    $resp = Invoke-WebRequest "http://localhost/" -UseBasicParsing
+    Add-Content -Path $logPath -Value ("StatusCode: " + $resp.StatusCode)
+    Add-Content -Path $logPath -Value ("Content-Type: " + $resp.Headers["Content-Type"])
+}
+catch {
+    Add-Content -Path $logPath -Value ("ERRO: " + $_.Exception.Message)
+    throw
+}
+finally {
+    Stop-Transcript | Out-Null
+}

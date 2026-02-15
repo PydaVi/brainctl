@@ -180,4 +180,22 @@ $ErrorActionPreference = "Stop"
 Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 New-Item -ItemType Directory -Force -Path "C:\inetpub\wwwroot" | Out-Null
 Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $pageHtml -Encoding UTF8
+Set-Content -Path "C:\inetpub\wwwroot\index.html" -Value $pageHtml -Encoding UTF8
+
+# Criar web.config para garantir charset UTF-8 no IIS
+$webConfigContent = @'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <httpProtocol>
+      <customHeaders>
+        <add name="Content-Type" value="text/html; charset=utf-8" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>
+'@
+
+Set-Content -Path "C:\inetpub\wwwroot\web.config" -Value $webConfigContent -Encoding UTF8
+
 Restart-Service W3SVC

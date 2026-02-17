@@ -66,11 +66,7 @@ app_scaling:
 
 observability:
   enabled: true
-  enable_private_endpoints: false
   enable_ssm_endpoints: false
-  endpoint_subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
   enable_ssm_private_dns: false
   cpu_high_threshold: 80
   alert_email: "seu-email@empresa.com"

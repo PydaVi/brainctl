@@ -8,16 +8,16 @@ app:
   region: us-east-1
 
 infrastructure:
-  vpc_id: vpc-0efe480ab7051b401
-  subnet_id: subnet-0816bd7998fc3436b
+  vpc_id: vpc-06de730431bfb7107
+  subnet_id: subnet-0ad9bdbfb62dcfcca
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
 
 ec2:
   instance_type: t3.micro
   os: windows-2022
-  ami: ""
+  ami: "ami-0fc40e7f26d89dac6"
   user_data_mode: merge
   user_data: file://scripts/app-user-data.ps1
   imds_v2_required: true
@@ -27,7 +27,7 @@ db:
   mode: ec2 # ec2 | rds
   instance_type: t3.micro
   port: 1433
-  ami: ""
+  ami: "ami-0fc40e7f26d89dac6"
   user_data_mode: default
   user_data: ""
   # rds:
@@ -47,18 +47,18 @@ lb:
   enabled: true
   scheme: public
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
   instance_count: 1
 
 app_scaling:
-  enabled: true
+  enabled: false
   subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
+    - subnet-0ad9bdbfb62dcfcca
+    - subnet-0075a8b0df99ca7c5
   min_size: 2
   max_size: 4
   desired_capacity: 2
@@ -66,11 +66,7 @@ app_scaling:
 
 observability:
   enabled: true
-  enable_private_endpoints: true
   enable_ssm_endpoints: true
-  endpoint_subnet_ids:
-    - subnet-0816bd7998fc3436b
-    - subnet-054b5772b4e01ad14
   enable_ssm_private_dns: true
   cpu_high_threshold: 80
   alert_email: "augustt.fabio@gmail.com"
@@ -78,7 +74,7 @@ observability:
 
 recovery:
   enabled: true
-  snapshot_time_utc: "03:00"
+  snapshot_time_utc: "03:21"
   retention_days: 7
   backup_app: true
   backup_db: true

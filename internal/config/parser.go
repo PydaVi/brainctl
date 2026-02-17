@@ -56,22 +56,37 @@ type WorkloadConfig struct {
 // DBConfig define o bloco opcional de banco.
 type DBConfig struct {
 	Enabled      bool   `yaml:"enabled"`
+	Mode         string `yaml:"mode"`
 	InstanceType string `yaml:"instance_type"`
 	Port         int    `yaml:"port"`
 	OS           string `yaml:"os"`
 	AMI          string `yaml:"ami"`
 	UserData     string `yaml:"user_data"`
 	UserDataMode string `yaml:"user_data_mode"`
+	RDS          struct {
+		InstanceClass       string `yaml:"instance_class"`
+		Engine              string `yaml:"engine"`
+		EngineVersion       string `yaml:"engine_version"`
+		AllocatedStorage    int    `yaml:"allocated_storage"`
+		StorageType         string `yaml:"storage_type"`
+		MultiAZ             bool   `yaml:"multi_az"`
+		DBName              string `yaml:"db_name"`
+		Username            string `yaml:"username"`
+		Password            string `yaml:"password"`
+		BackupRetentionDays int    `yaml:"backup_retention_days"`
+		PubliclyAccessible  bool   `yaml:"publicly_accessible"`
+	} `yaml:"rds"`
 }
 
 // LBConfig define parâmetros de load balancer.
 type LBConfig struct {
-	Enabled      bool     `yaml:"enabled"`
-	Scheme       string   `yaml:"scheme"`
-	SubnetIDs    []string `yaml:"subnet_ids"`
-	ListenerPort int      `yaml:"listener_port"`
-	TargetPort   int      `yaml:"target_port"`
-	AllowedCIDR  string   `yaml:"allowed_cidr"`
+	Enabled       bool     `yaml:"enabled"`
+	Scheme        string   `yaml:"scheme"`
+	SubnetIDs     []string `yaml:"subnet_ids"`
+	ListenerPort  int      `yaml:"listener_port"`
+	TargetPort    int      `yaml:"target_port"`
+	AllowedCIDR   string   `yaml:"allowed_cidr"`
+	InstanceCount int      `yaml:"instance_count"`
 }
 
 type AppScalingConfig struct {
@@ -85,21 +100,30 @@ type AppScalingConfig struct {
 
 // ObservabilityConfig controla dashboards, alarmes e SNS.
 type ObservabilityConfig struct {
-	Enabled             *bool  `yaml:"enabled"`
-	CPUHighThreshold    int    `yaml:"cpu_high_threshold"`
-	AlertEmail          string `yaml:"alert_email"`
-	EnableSSMEndpoints  *bool  `yaml:"enable_ssm_endpoints"`
-	EnableSSMPrivateDNS *bool  `yaml:"enable_ssm_private_dns"`
+	Enabled                *bool    `yaml:"enabled"`
+	CPUHighThreshold       int      `yaml:"cpu_high_threshold"`
+	AlertEmail             string   `yaml:"alert_email"`
+	EnableSSMEndpoints     *bool    `yaml:"enable_ssm_endpoints"`
+	EnablePrivateEndpoints *bool    `yaml:"enable_private_endpoints"`
+	EnableSSMPrivateDNS    *bool    `yaml:"enable_ssm_private_dns"`
+	EndpointSubnetIDs      []string `yaml:"endpoint_subnet_ids"`
 }
 
 // RecoveryConfig define snapshots automáticos e runbooks de recuperação.
 type RecoveryConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	SnapshotTimeUTC string `yaml:"snapshot_time_utc"`
-	RetentionDays   int    `yaml:"retention_days"`
-	BackupApp       *bool  `yaml:"backup_app"`
-	BackupDB        *bool  `yaml:"backup_db"`
-	EnableRunbooks  *bool  `yaml:"enable_runbooks"`
+	Enabled         bool                `yaml:"enabled"`
+	SnapshotTimeUTC string              `yaml:"snapshot_time_utc"`
+	RetentionDays   int                 `yaml:"retention_days"`
+	BackupApp       *bool               `yaml:"backup_app"`
+	BackupDB        *bool               `yaml:"backup_db"`
+	EnableRunbooks  *bool               `yaml:"enable_runbooks"`
+	Drill           RecoveryDrillConfig `yaml:"drill"`
+}
+
+type RecoveryDrillConfig struct {
+	Enabled               bool   `yaml:"enabled"`
+	ScheduleExpression    string `yaml:"schedule_expression"`
+	RegisterToTargetGroup *bool  `yaml:"register_to_target_group"`
 }
 
 type RuntimeOverrides struct {
@@ -322,14 +346,73 @@ func (c *AppConfig) Validate() error {
 	if c.DB.UserDataMode == "custom" && strings.TrimSpace(c.DB.UserData) == "" {
 		return fmt.Errorf("db.user_data is required when db.user_data_mode=custom")
 	}
+	if c.DB.Mode == "" {
+		c.DB.Mode = "ec2"
+	}
+	if c.DB.Mode != "ec2" && c.DB.Mode != "rds" {
+		return fmt.Errorf("db.mode must be one of: ec2, rds")
+	}
 
 	if c.DB.Enabled {
-		if c.DB.InstanceType == "" {
-			c.DB.InstanceType = c.EC2.InstanceType
+		if c.DB.Mode == "ec2" {
+			if c.DB.InstanceType == "" {
+				c.DB.InstanceType = c.EC2.InstanceType
+			}
+			if c.DB.Port == 0 {
+				c.DB.Port = 1433
+			}
+		} else {
+			if len(c.Infrastructure.SubnetIDs) < 2 && len(c.LB.SubnetIDs) < 2 {
+				return fmt.Errorf("db.mode=rds requires at least 2 subnets in infrastructure.subnet_ids or lb.subnet_ids")
+			}
+			if c.DB.UserDataMode != "default" || strings.TrimSpace(c.DB.UserData) != "" {
+				return fmt.Errorf("db.user_data and db.user_data_mode are only supported when db.mode=ec2")
+			}
+			if c.DB.AMI != "" || c.DB.OS != "" || c.DB.InstanceType != "" {
+				return fmt.Errorf("db.instance_type/db.ami/db.os are only supported when db.mode=ec2")
+			}
+			if c.DB.RDS.InstanceClass == "" {
+				c.DB.RDS.InstanceClass = "db.t3.micro"
+			}
+			if c.DB.RDS.Engine == "" {
+				c.DB.RDS.Engine = "postgres"
+			}
+			if c.DB.RDS.EngineVersion == "" {
+				c.DB.RDS.EngineVersion = "16.3"
+			}
+			if c.DB.RDS.AllocatedStorage == 0 {
+				c.DB.RDS.AllocatedStorage = 20
+			}
+			if c.DB.RDS.StorageType == "" {
+				c.DB.RDS.StorageType = "gp3"
+			}
+			if c.DB.RDS.DBName == "" {
+				c.DB.RDS.DBName = "appdb"
+			}
+			if c.DB.RDS.Username == "" {
+				c.DB.RDS.Username = "brainctl"
+			}
+			if c.DB.RDS.Password == "" {
+				return fmt.Errorf("db.rds.password is required when db.mode=rds")
+			}
+			if c.DB.RDS.BackupRetentionDays == 0 {
+				c.DB.RDS.BackupRetentionDays = 7
+			}
+			if c.DB.Port == 0 {
+				c.DB.Port = 5432
+			}
 		}
-		if c.DB.Port == 0 {
-			c.DB.Port = 1433
+	} else {
+		if c.DB.Mode == "rds" && strings.TrimSpace(c.DB.RDS.Password) != "" {
+			return fmt.Errorf("db.rds.password must be omitted when db.enabled=false")
 		}
+	}
+
+	if c.LB.InstanceCount == 0 {
+		c.LB.InstanceCount = 1
+	}
+	if c.LB.InstanceCount < 1 {
+		return fmt.Errorf("lb.instance_count must be >= 1")
 	}
 
 	if c.LB.Enabled {
@@ -388,6 +471,13 @@ func (c *AppConfig) Validate() error {
 		if c.AppScaling.DesiredCapacity < c.AppScaling.MinSize || c.AppScaling.DesiredCapacity > c.AppScaling.MaxSize {
 			return fmt.Errorf("app_scaling.desired_capacity must be between min_size and max_size")
 		}
+		if c.LB.InstanceCount != 1 {
+			return fmt.Errorf("lb.instance_count cannot be used when app_scaling.enabled=true")
+		}
+	}
+
+	if !c.AppScaling.Enabled && c.LB.InstanceCount > 1 && !c.LB.Enabled {
+		return fmt.Errorf("lb.instance_count>1 requires lb.enabled=true")
 	}
 
 	if c.Observability.Enabled == nil {
@@ -397,6 +487,10 @@ func (c *AppConfig) Validate() error {
 	if c.Observability.EnableSSMEndpoints == nil {
 		v := false
 		c.Observability.EnableSSMEndpoints = &v
+	}
+	if c.Observability.EnablePrivateEndpoints == nil {
+		v := c.Observability.EnableSSMEndpoints != nil && *c.Observability.EnableSSMEndpoints
+		c.Observability.EnablePrivateEndpoints = &v
 	}
 	if c.Observability.EnableSSMPrivateDNS == nil {
 		v := false
@@ -414,8 +508,29 @@ func (c *AppConfig) Validate() error {
 	if c.Observability.EnableSSMEndpoints != nil && *c.Observability.EnableSSMEndpoints && (c.Observability.Enabled == nil || !*c.Observability.Enabled) {
 		return fmt.Errorf("observability.enable_ssm_endpoints=true requires observability.enabled=true")
 	}
+	if c.Observability.EnablePrivateEndpoints != nil && *c.Observability.EnablePrivateEndpoints && (c.Observability.Enabled == nil || !*c.Observability.Enabled) {
+		return fmt.Errorf("observability.enable_private_endpoints=true requires observability.enabled=true")
+	}
+	if c.Observability.EnableSSMEndpoints != nil && *c.Observability.EnableSSMEndpoints && (c.Observability.EnablePrivateEndpoints == nil || !*c.Observability.EnablePrivateEndpoints) {
+		return fmt.Errorf("observability.enable_ssm_endpoints=true requires observability.enable_private_endpoints=true")
+	}
 	if c.Observability.EnableSSMPrivateDNS != nil && *c.Observability.EnableSSMPrivateDNS && (c.Observability.EnableSSMEndpoints == nil || !*c.Observability.EnableSSMEndpoints) {
-		return fmt.Errorf("observability.enable_ssm_private_dns=true requires observability.enable_ssm_endpoints=true")
+		return fmt.Errorf("observability.enable_ssm_private_dns=true requires observability.enable_private_endpoints=true")
+	}
+
+	if c.Observability.EnablePrivateEndpoints != nil && *c.Observability.EnablePrivateEndpoints {
+		if len(c.Observability.EndpointSubnetIDs) == 0 {
+			if len(c.Infrastructure.SubnetIDs) >= 2 {
+				c.Observability.EndpointSubnetIDs = c.Infrastructure.SubnetIDs
+			} else if len(c.LB.SubnetIDs) >= 2 {
+				c.Observability.EndpointSubnetIDs = c.LB.SubnetIDs
+			} else {
+				c.Observability.EndpointSubnetIDs = []string{c.Infrastructure.SubnetID}
+			}
+		}
+		if len(c.Observability.EndpointSubnetIDs) < 2 {
+			return fmt.Errorf("observability.endpoint_subnet_ids must have at least 2 subnets when observability.enable_private_endpoints=true")
+		}
 	}
 
 	if c.Recovery.SnapshotTimeUTC == "" {
@@ -453,8 +568,40 @@ func (c *AppConfig) Validate() error {
 		v := true
 		c.Recovery.EnableRunbooks = &v
 	}
-	if c.Recovery.Enabled && *c.Recovery.BackupDB && !c.DB.Enabled {
-		return fmt.Errorf("recovery.backup_db=true requires db.enabled=true")
+	if c.Recovery.Drill.ScheduleExpression == "" {
+		c.Recovery.Drill.ScheduleExpression = "cron(0 3 1 * ? *)"
+	}
+	if c.Recovery.Drill.RegisterToTargetGroup == nil {
+		v := false
+		c.Recovery.Drill.RegisterToTargetGroup = &v
+	}
+	if c.Recovery.Enabled && *c.Recovery.BackupDB {
+		if !c.DB.Enabled {
+			return fmt.Errorf("recovery.backup_db=true requires db.enabled=true")
+		}
+		if c.DB.Mode != "ec2" {
+			return fmt.Errorf("recovery.backup_db=true requires db.mode=ec2")
+		}
+	}
+	if c.Recovery.Drill.Enabled {
+		if !c.Recovery.Enabled {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.enabled=true")
+		}
+		if c.Recovery.EnableRunbooks == nil || !*c.Recovery.EnableRunbooks {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.enable_runbooks=true")
+		}
+		if c.Recovery.BackupApp == nil || !*c.Recovery.BackupApp {
+			return fmt.Errorf("recovery.drill.enabled=true requires recovery.backup_app=true")
+		}
+		if c.Observability.Enabled == nil || !*c.Observability.Enabled {
+			return fmt.Errorf("recovery.drill.enabled=true requires observability.enabled=true")
+		}
+		if c.Recovery.Drill.ScheduleExpression == "" {
+			return fmt.Errorf("recovery.drill.schedule_expression is required when recovery.drill.enabled=true")
+		}
+		if c.Recovery.Drill.RegisterToTargetGroup != nil && *c.Recovery.Drill.RegisterToTargetGroup && !c.LB.Enabled {
+			return fmt.Errorf("recovery.drill.register_to_target_group=true requires lb.enabled=true")
+		}
 	}
 
 	return nil

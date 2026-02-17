@@ -16,6 +16,16 @@ output "public_ip" {
   description = "Public IP da instância EC2 da aplicação (quando ASG estiver desabilitado)"
   value       = var.enable_app_asg ? null : aws_instance.app[0].public_ip
 }
+output "app_instance_ids" {
+  description = "IDs das instâncias EC2 da aplicação quando ASG estiver desabilitado"
+  value       = var.enable_app_asg ? [] : aws_instance.app[*].id
+}
+
+output "app_private_ips" {
+  description = "Private IPs das instâncias EC2 da aplicação quando ASG estiver desabilitado"
+  value       = var.enable_app_asg ? [] : aws_instance.app[*].private_ip
+}
+
 
 output "app_asg_name" {
   description = "Nome do Auto Scaling Group da aplicação"
@@ -53,12 +63,12 @@ output "security_group_name" {
 
 output "db_instance_id" {
   description = "ID da instância EC2 do banco"
-  value       = var.enable_db ? aws_instance.db[0].id : null
+  value       = var.enable_db && var.db_mode == "ec2" ? aws_instance.db[0].id : null
 }
 
 output "db_private_ip" {
   description = "Private IP da instância EC2 do banco"
-  value       = var.enable_db ? aws_instance.db[0].private_ip : null
+  value       = var.enable_db && var.db_mode == "ec2" ? aws_instance.db[0].private_ip : null
 }
 
 output "db_security_group_id" {
@@ -70,6 +80,21 @@ output "db_security_group_name" {
   description = "Nome do Security Group do banco"
   value       = var.enable_db ? aws_security_group.db_sg[0].name : null
 }
+output "db_rds_instance_id" {
+  description = "ID da instância RDS do banco"
+  value       = var.enable_db && var.db_mode == "rds" ? aws_db_instance.db[0].id : null
+}
+
+output "db_rds_endpoint" {
+  description = "Endpoint da instância RDS"
+  value       = var.enable_db && var.db_mode == "rds" ? aws_db_instance.db[0].address : null
+}
+
+output "db_rds_port" {
+  description = "Porta do endpoint RDS"
+  value       = var.enable_db && var.db_mode == "rds" ? aws_db_instance.db[0].port : null
+}
+
 
 # ==========================================================
 # ALB (Opcional)
@@ -171,7 +196,7 @@ output "recovery_app_policy_id" {
 
 output "recovery_db_policy_id" {
   description = "ID da política DLM de snapshots da DB"
-  value       = var.enable_recovery_mode && var.recovery_backup_db && var.enable_db ? module.recovery.recovery_db_policy_id : null
+  value       = var.enable_recovery_mode && var.recovery_backup_db && var.enable_db && var.db_mode == "ec2" ? module.recovery.recovery_db_policy_id : null
 }
 
 output "recovery_app_runbook_name" {
@@ -181,5 +206,10 @@ output "recovery_app_runbook_name" {
 
 output "recovery_db_runbook_name" {
   description = "Nome do runbook de recuperação da DB"
-  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db ? module.recovery.recovery_db_runbook_name : null
+  value       = var.enable_recovery_mode && var.recovery_enable_runbooks && var.recovery_backup_db && var.enable_db && var.db_mode == "ec2" ? module.recovery.recovery_db_runbook_name : null
+}
+
+output "recovery_drill_schedule_name" {
+  description = "Nome do schedule mensal de DR drill"
+  value       = var.enable_recovery_mode && var.recovery_drill_enabled ? module.recovery.recovery_drill_schedule_name : null
 }

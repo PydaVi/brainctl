@@ -63,7 +63,7 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 resource "aws_security_group" "ssm_endpoints" {
-  count       = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  count       = var.enable_observability && var.enable_private_endpoints ? 1 : 0
   name        = "${var.name}-${var.environment}-ssm-endpoints-sg"
   description = "Security group for private SSM VPC endpoints"
   vpc_id      = var.vpc_id
@@ -102,11 +102,11 @@ resource "aws_security_group" "ssm_endpoints" {
 }
 
 resource "aws_vpc_endpoint" "ssm" {
-  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  count               = var.enable_observability && var.enable_private_endpoints ? 1 : 0
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssm"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = var.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -118,11 +118,11 @@ resource "aws_vpc_endpoint" "ssm" {
 }
 
 resource "aws_vpc_endpoint" "ssmmessages" {
-  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  count               = var.enable_observability && var.enable_private_endpoints ? 1 : 0
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = var.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -134,16 +134,49 @@ resource "aws_vpc_endpoint" "ssmmessages" {
 }
 
 resource "aws_vpc_endpoint" "ec2messages" {
-  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  count               = var.enable_observability && var.enable_private_endpoints ? 1 : 0
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ec2messages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = var.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
   tags = {
     Name        = "${var.name}-${var.environment}-vpce-ec2messages"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+
+resource "aws_vpc_endpoint" "logs" {
+  count               = var.enable_observability && var.enable_private_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.endpoint_subnet_ids
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = var.enable_ssm_private_dns
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-logs"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_vpc_endpoint" "monitoring" {
+  count               = var.enable_observability && var.enable_private_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.monitoring"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.endpoint_subnet_ids
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = var.enable_ssm_private_dns
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-monitoring"
     Environment = var.environment
     ManagedBy   = "brainctl"
   }

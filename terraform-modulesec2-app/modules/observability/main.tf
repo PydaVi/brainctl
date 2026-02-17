@@ -201,8 +201,8 @@ resource "aws_cloudwatch_dashboard" "app_asg" {
   })
 }
 
-resource "aws_cloudwatch_dashboard" "db" {
-  count          = var.enable_observability && var.enable_db ? 1 : 0
+resource "aws_cloudwatch_dashboard" "db_ec2" {
+  count          = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-db"
 
   dashboard_body = jsonencode({
@@ -265,6 +265,76 @@ resource "aws_cloudwatch_dashboard" "db" {
           stat    = "Average"
           period  = 60
           metrics = [["CWAgent", "LogicalDisk % Free Space", "InstanceId", var.db_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_dashboard" "db_rds" {
+  count          = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
+  dashboard_name = "brainctl-${var.name}-${var.environment}-db"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "RDS CPUUtilization"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_rds_identifier]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "RDS DatabaseConnections"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_rds_identifier]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "RDS FreeStorageSpace (bytes)"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Minimum"
+          period  = 60
+          metrics = [["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.db_rds_identifier]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "RDS FreeableMemory (bytes)"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Minimum"
+          period  = 60
+          metrics = [["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", var.db_rds_identifier]]
         }
       }
     ]
@@ -479,8 +549,8 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_4xx_high" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "db_cpu_high" {
-  count               = var.enable_observability && var.enable_db ? 1 : 0
+resource "aws_cloudwatch_metric_alarm" "db_ec2_cpu_high" {
+  count               = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
   alarm_name          = "brainctl-${var.name}-${var.environment}-db-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
@@ -489,10 +559,64 @@ resource "aws_cloudwatch_metric_alarm" "db_cpu_high" {
   period              = 60
   statistic           = "Average"
   threshold           = var.cpu_high_threshold
-  alarm_description   = "CPU alta na instância DB"
+  alarm_description   = "CPU alta na instância DB (EC2)"
   alarm_actions       = var.alarm_actions
   ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.db_instance_id
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "db_rds_cpu_high" {
+  count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = var.cpu_high_threshold
+  alarm_description   = "CPU alta na instância RDS"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    DBInstanceIdentifier = var.db_rds_identifier
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "db_rds_free_storage_low" {
+  count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-free-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Minimum"
+  threshold           = 2147483648
+  alarm_description   = "Espaço livre baixo no RDS (< 2GB)"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    DBInstanceIdentifier = var.db_rds_identifier
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "db_rds_connections_high" {
+  count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-connections-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Conexões altas no RDS"
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
+  dimensions = {
+    DBInstanceIdentifier = var.db_rds_identifier
   }
 }

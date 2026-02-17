@@ -42,6 +42,7 @@ module "app" {
   subnet_id = "{{ .Infrastructure.SubnetID }}"
 
   instance_type       = "{{ .EC2.InstanceType }}"
+  app_instance_count  = {{ .LB.InstanceCount }}
   app_ami_id          = "{{ .EC2.AMI }}"
   app_user_data_mode  = "{{ .EC2.UserDataMode }}"
   app_user_data_base64 = "{{ .AppUserDataB64 }}"
@@ -49,11 +50,24 @@ module "app" {
   allowed_rdp_cidr    = "0.0.0.0/0"
 
   enable_db           = {{ .DB.Enabled }}
+  db_mode             = "{{ .DB.Mode }}"
   db_instance_type    = "{{ .DB.InstanceType }}"
   db_ami_id           = "{{ .DB.AMI }}"
   db_user_data_mode   = "{{ .DB.UserDataMode }}"
   db_user_data_base64 = "{{ .DBUserDataB64 }}"
   db_port             = {{ .DB.Port }}
+
+  db_rds_instance_class        = "{{ .DB.RDS.InstanceClass }}"
+  db_rds_engine                = "{{ .DB.RDS.Engine }}"
+  db_rds_engine_version        = "{{ .DB.RDS.EngineVersion }}"
+  db_rds_allocated_storage     = {{ .DB.RDS.AllocatedStorage }}
+  db_rds_storage_type          = "{{ .DB.RDS.StorageType }}"
+  db_rds_multi_az              = {{ .DB.RDS.MultiAZ }}
+  db_rds_db_name               = "{{ .DB.RDS.DBName }}"
+  db_rds_username              = "{{ .DB.RDS.Username }}"
+  db_rds_password              = "{{ .DB.RDS.Password }}"
+  db_rds_backup_retention_days = {{ .DB.RDS.BackupRetentionDays }}
+  db_rds_publicly_accessible   = {{ .DB.RDS.PubliclyAccessible }}
 
   enable_lb        = {{ .LB.Enabled }}
   lb_scheme        = "{{ .LB.Scheme }}"
@@ -72,6 +86,8 @@ module "app" {
 
   enable_observability = {{ .ObservabilityEnabled }}
   enable_ssm_endpoints = {{ .ObservabilityEnableSSMEndpoints }}
+  enable_private_endpoints = {{ .ObservabilityEnablePrivateEndpoints }}
+  endpoint_subnet_ids = [{{- range $i, $s := .Observability.EndpointSubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
   enable_ssm_private_dns = {{ .ObservabilityEnableSSMPrivateDNS }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
@@ -82,6 +98,9 @@ module "app" {
   recovery_backup_app          = {{ .RecoveryBackupApp }}
   recovery_backup_db           = {{ .RecoveryBackupDB }}
   recovery_enable_runbooks     = {{ .RecoveryEnableRunbooks }}
+  recovery_drill_enabled       = {{ .Recovery.Drill.Enabled }}
+  recovery_drill_schedule_expression = "{{ .Recovery.Drill.ScheduleExpression }}"
+  recovery_drill_register_to_target_group = {{ .RecoveryDrillRegisterToTargetGroup }}
 
   app_extra_ingress_rules = [{{ .AppExtraIngressHCL }}]
   db_extra_ingress_rules  = [{{ .DBExtraIngressHCL }}]
@@ -104,6 +123,16 @@ output "private_ip" {
 output "public_ip" {
   value       = module.app.public_ip
   description = "EC2 public ip"
+}
+
+output "app_instance_ids" {
+  value       = module.app.app_instance_ids
+  description = "APP EC2 instance ids when ASG is disabled"
+}
+
+output "app_private_ips" {
+  value       = module.app.app_private_ips
+  description = "APP EC2 private ips when ASG is disabled"
 }
 
 output "app_asg_name" {
@@ -138,12 +167,12 @@ output "security_group_name" {
 
 output "db_instance_id" {
   value       = module.app.db_instance_id
-  description = "DB instance id"
+  description = "DB instance id (EC2 mode)"
 }
 
 output "db_private_ip" {
   value       = module.app.db_private_ip
-  description = "DB private ip"
+  description = "DB private ip (EC2 mode)"
 }
 
 output "db_security_group_id" {
@@ -154,6 +183,21 @@ output "db_security_group_id" {
 output "db_security_group_name" {
   value       = module.app.db_security_group_name
   description = "DB SG name"
+}
+
+output "db_rds_instance_id" {
+  value       = module.app.db_rds_instance_id
+  description = "DB instance id (RDS mode)"
+}
+
+output "db_rds_endpoint" {
+  value       = module.app.db_rds_endpoint
+  description = "RDS endpoint"
+}
+
+output "db_rds_port" {
+  value       = module.app.db_rds_port
+  description = "RDS port"
 }
 
 output "alb_dns_name" {
@@ -240,22 +284,28 @@ output "recovery_db_runbook_name" {
   value       = module.app.recovery_db_runbook_name
   description = "Automation runbook name for DB recovery"
 }
+
+output "recovery_drill_schedule_name" {
+  value       = module.app.recovery_drill_schedule_name
+  description = "EventBridge Scheduler name for monthly DR drill"
+}
 `
 
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled             bool
-	ObservabilityEnableSSMEndpoints  bool
-	ObservabilityEnableSSMPrivateDNS bool
-	RecoveryBackupApp                bool
-	RecoveryBackupDB                 bool
-	RecoveryEnableRunbooks           bool
-	AppUserDataB64                   string
-	DBUserDataB64                    string
-	AppExtraIngressHCL               string
-	DBExtraIngressHCL                string
-	ALBExtraIngressHCL               string
+	ObservabilityEnabled               bool
+	ObservabilityEnableSSMEndpoints    bool
+	ObservabilityEnableSSMPrivateDNS   bool
+	RecoveryBackupApp                  bool
+	RecoveryBackupDB                   bool
+	RecoveryEnableRunbooks             bool
+	RecoveryDrillRegisterToTargetGroup bool
+	AppUserDataB64                     string
+	DBUserDataB64                      string
+	AppExtraIngressHCL                 string
+	DBExtraIngressHCL                  string
+	ALBExtraIngressHCL                 string
 }
 
 // Generate monta workspace Terraform completo para o workload ec2-app.
@@ -285,16 +335,17 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:                        cfg,
-		ObservabilityEnabled:             cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		ObservabilityEnableSSMEndpoints:  cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
-		ObservabilityEnableSSMPrivateDNS: cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
-		RecoveryBackupApp:                cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
-		RecoveryBackupDB:                 cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
-		RecoveryEnableRunbooks:           cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
-		AppExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:                buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:               buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:                          cfg,
+		ObservabilityEnabled:               cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		ObservabilityEnableSSMEndpoints:    cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
+		ObservabilityEnableSSMPrivateDNS:   cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
+		RecoveryBackupApp:                  cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:                   cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks:             cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		RecoveryDrillRegisterToTargetGroup: cfg.Recovery.Drill.RegisterToTargetGroup != nil && *cfg.Recovery.Drill.RegisterToTargetGroup,
+		AppExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:                  buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
 
 	appUserData, err := sanitizePowerShellUserData(cfg.EC2.UserData)

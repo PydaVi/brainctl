@@ -24,11 +24,24 @@ ec2:
 
 db:
   enabled: true
+  mode: ec2 # ec2 | rds
   instance_type: t3.micro
   port: 1433
   ami: ""
   user_data_mode: default
   user_data: ""
+  # rds:
+  #   instance_class: db.t3.micro
+  #   engine: postgres
+  #   engine_version: "16.3"
+  #   allocated_storage: 20
+  #   storage_type: gp3
+  #   multi_az: false
+  #   db_name: appdb
+  #   username: brainctl
+  #   password: "troque-esta-senha"
+  #   backup_retention_days: 7
+  #   publicly_accessible: false
 
 lb:
   enabled: true
@@ -39,6 +52,7 @@ lb:
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
+  instance_count: 1
 
 app_scaling:
   enabled: true
@@ -52,7 +66,11 @@ app_scaling:
 
 observability:
   enabled: true
+  enable_private_endpoints: true
   enable_ssm_endpoints: true
+  endpoint_subnet_ids:
+    - subnet-0816bd7998fc3436b
+    - subnet-054b5772b4e01ad14
   enable_ssm_private_dns: true
   cpu_high_threshold: 80
   alert_email: "augustt.fabio@gmail.com"
@@ -65,3 +83,7 @@ recovery:
   backup_app: true
   backup_db: true
   enable_runbooks: true
+  drill:
+    enabled: true
+    schedule_expression: "cron(0 3 1 * ? *)"
+    register_to_target_group: false

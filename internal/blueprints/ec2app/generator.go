@@ -294,18 +294,19 @@ output "recovery_drill_schedule_name" {
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
-	ObservabilityEnabled               bool
-	ObservabilityEnableSSMEndpoints    bool
-	ObservabilityEnableSSMPrivateDNS   bool
-	RecoveryBackupApp                  bool
-	RecoveryBackupDB                   bool
-	RecoveryEnableRunbooks             bool
-	RecoveryDrillRegisterToTargetGroup bool
-	AppUserDataB64                     string
-	DBUserDataB64                      string
-	AppExtraIngressHCL                 string
-	DBExtraIngressHCL                  string
-	ALBExtraIngressHCL                 string
+	ObservabilityEnabled                bool
+	ObservabilityEnableSSMEndpoints     bool
+	ObservabilityEnablePrivateEndpoints bool
+	ObservabilityEnableSSMPrivateDNS    bool
+	RecoveryBackupApp                   bool
+	RecoveryBackupDB                    bool
+	RecoveryEnableRunbooks              bool
+	RecoveryDrillRegisterToTargetGroup  bool
+	AppUserDataB64                      string
+	DBUserDataB64                       string
+	AppExtraIngressHCL                  string
+	DBExtraIngressHCL                   string
+	ALBExtraIngressHCL                  string
 }
 
 // Generate monta workspace Terraform completo para o workload ec2-app.
@@ -335,17 +336,18 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	defer f.Close()
 
 	data := renderData{
-		AppConfig:                          cfg,
-		ObservabilityEnabled:               cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
-		ObservabilityEnableSSMEndpoints:    cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
-		ObservabilityEnableSSMPrivateDNS:   cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
-		RecoveryBackupApp:                  cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
-		RecoveryBackupDB:                   cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
-		RecoveryEnableRunbooks:             cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
-		RecoveryDrillRegisterToTargetGroup: cfg.Recovery.Drill.RegisterToTargetGroup != nil && *cfg.Recovery.Drill.RegisterToTargetGroup,
-		AppExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
-		DBExtraIngressHCL:                  buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
-		ALBExtraIngressHCL:                 buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
+		AppConfig:                           cfg,
+		ObservabilityEnabled:                cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
+		ObservabilityEnableSSMEndpoints:     cfg.Observability.EnableSSMEndpoints != nil && *cfg.Observability.EnableSSMEndpoints,
+		ObservabilityEnablePrivateEndpoints: cfg.Observability.EnablePrivateEndpoints != nil && *cfg.Observability.EnablePrivateEndpoints,
+		ObservabilityEnableSSMPrivateDNS:    cfg.Observability.EnableSSMPrivateDNS != nil && *cfg.Observability.EnableSSMPrivateDNS,
+		RecoveryBackupApp:                   cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
+		RecoveryBackupDB:                    cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,
+		RecoveryEnableRunbooks:              cfg.Recovery.EnableRunbooks != nil && *cfg.Recovery.EnableRunbooks,
+		RecoveryDrillRegisterToTargetGroup:  cfg.Recovery.Drill.RegisterToTargetGroup != nil && *cfg.Recovery.Drill.RegisterToTargetGroup,
+		AppExtraIngressHCL:                  buildIngressRulesHCL(cfg.RuntimeOverrides.AppExtraIngress),
+		DBExtraIngressHCL:                   buildIngressRulesHCL(cfg.RuntimeOverrides.DBExtraIngress),
+		ALBExtraIngressHCL:                  buildIngressRulesHCL(cfg.RuntimeOverrides.ALBExtraIngress),
 	}
 
 	appUserData, err := sanitizePowerShellUserData(cfg.EC2.UserData)

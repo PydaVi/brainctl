@@ -58,6 +58,31 @@ variable "admin_cidr" {
   default = ""
 }
 
+variable "enable_nat_gateway" {
+  type    = bool
+  default = false
+}
+
+variable "public_subnet_id" {
+  type    = string
+  default = ""
+}
+
+variable "public_subnet_cidr" {
+  type    = string
+  default = ""
+}
+
+variable "internet_gateway_id" {
+  type    = string
+  default = ""
+}
+
+variable "private_route_table_id" {
+  type    = string
+  default = ""
+}
+
 variable "enable_ssm" {
   type    = bool
   default = true

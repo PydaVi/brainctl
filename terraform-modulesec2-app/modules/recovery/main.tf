@@ -233,6 +233,18 @@ resource "aws_ssm_document" "recovery_app_runbook" {
         outputs = [{ Name = "VolumeId", Selector = "$.VolumeId", Type = "String" }]
       },
       {
+        name   = "WaitUntilAppVolumeAvailable"
+        action = "aws:waitForAwsResourceProperty"
+        timeoutSeconds = 900
+        inputs = {
+          Service          = "ec2"
+          Api              = "DescribeVolumes"
+          VolumeIds        = ["{{CreateAppRecoveryVolume.VolumeId}}"]
+          PropertySelector = "$.Volumes[0].State"
+          DesiredValues    = ["available"]
+        }
+      },
+      {
         name   = "LaunchRecoveredAppInstance"
         action = "aws:executeAwsApi"
         inputs = {
@@ -257,6 +269,18 @@ resource "aws_ssm_document" "recovery_app_runbook" {
           }]
         }
         outputs = [{ Name = "InstanceId", Selector = "$.Instances[0].InstanceId", Type = "String" }]
+      },
+      {
+        name   = "WaitUntilAppInstanceRunning"
+        action = "aws:waitForAwsResourceProperty"
+        timeoutSeconds = 900
+        inputs = {
+          Service          = "ec2"
+          Api              = "DescribeInstances"
+          InstanceIds      = ["{{LaunchRecoveredAppInstance.InstanceId}}"]
+          PropertySelector = "$.Reservations[0].Instances[0].State.Name"
+          DesiredValues    = ["running"]
+        }
       },
       {
         name   = "AttachRecoveredVolume"
@@ -392,6 +416,18 @@ resource "aws_ssm_document" "recovery_db_runbook" {
         outputs = [{ Name = "VolumeId", Selector = "$.VolumeId", Type = "String" }]
       },
       {
+        name   = "WaitUntilDBVolumeAvailable"
+        action = "aws:waitForAwsResourceProperty"
+        timeoutSeconds = 900
+        inputs = {
+          Service          = "ec2"
+          Api              = "DescribeVolumes"
+          VolumeIds        = ["{{CreateDBRecoveryVolume.VolumeId}}"]
+          PropertySelector = "$.Volumes[0].State"
+          DesiredValues    = ["available"]
+        }
+      },
+      {
         name   = "LaunchRecoveredDBInstance"
         action = "aws:executeAwsApi"
         inputs = {
@@ -416,6 +452,18 @@ resource "aws_ssm_document" "recovery_db_runbook" {
           }]
         }
         outputs = [{ Name = "InstanceId", Selector = "$.Instances[0].InstanceId", Type = "String" }]
+      },
+      {
+        name   = "WaitUntilDBInstanceRunning"
+        action = "aws:waitForAwsResourceProperty"
+        timeoutSeconds = 900
+        inputs = {
+          Service          = "ec2"
+          Api              = "DescribeInstances"
+          InstanceIds      = ["{{LaunchRecoveredDBInstance.InstanceId}}"]
+          PropertySelector = "$.Reservations[0].Instances[0].State.Name"
+          DesiredValues    = ["running"]
+        }
       },
       {
         name   = "AttachRecoveredDBVolume"

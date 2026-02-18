@@ -202,37 +202,9 @@ function Write-BrainctlLog([string]$message) {
   Add-Content -Path $brainctlLogPath -Value "$ts [APP] $message"
 }
 
-Write-BrainctlLog "Starting CloudWatch bootstrap"
-
-New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
-
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
-$jsonContent = @'
-${local.cw_agent_config_app}
-'@
-
-[System.IO.File]::WriteAllText(
-  "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json",
-  $jsonContent,
-  $utf8NoBom
-)
-
-$cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
-
-if (Test-Path $cwCtl) {
-  try {
-    & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
-    Write-BrainctlLog "CloudWatch Agent bootstrap completed"
-  }
-  catch {
-    Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
-  }
-}
-else {
-  Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
-}
+Write-BrainctlLog "CloudWatch Agent config bootstrap delegated to SSM association"
 EOT
+
 
   ############################################
   # USER DATA - DB (SEM WRAPPER)
@@ -248,27 +220,6 @@ function Write-BrainctlLog([string]$message) {
   Add-Content -Path $brainctlLogPath -Value "$ts [DB] $message"
 }
 
-Write-BrainctlLog "Starting CloudWatch bootstrap"
-
-New-Item -ItemType Directory -Force -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
-
-@'
-${local.cw_agent_config_db}
-'@ | Set-Content -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json" -Encoding UTF8
-
-$cwCtl = "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1"
-
-if (Test-Path $cwCtl) {
-  try {
-    & $cwCtl -a fetch-config -m ec2 -s -c file:"C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json"
-    Write-BrainctlLog "CloudWatch Agent bootstrap completed"
-  }
-  catch {
-    Write-BrainctlLog "CloudWatch Agent bootstrap failed but provisioning will continue: $($_.Exception.Message)"
-  }
-}
-else {
-  Write-BrainctlLog "CloudWatch Agent bootstrap skipped (agent not present in AMI)"
-}
+Write-BrainctlLog "CloudWatch Agent config bootstrap delegated to SSM association"
 EOT
 }

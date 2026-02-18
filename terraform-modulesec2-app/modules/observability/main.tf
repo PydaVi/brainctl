@@ -41,12 +41,12 @@ resource "aws_cloudwatch_dashboard" "app" {
         width  = 12
         height = 6
         properties = {
-          title   = "APP Memory % (CloudWatch Agent)"
+          title   = "APP Memory % Used"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [[var.cw_agent_namespace, "Memory % Committed Bytes In Use", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
+          metrics = [[var.cw_agent_namespace, "Memory % Used", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
         }
       },
       {
@@ -56,12 +56,30 @@ resource "aws_cloudwatch_dashboard" "app" {
         width  = 12
         height = 6
         properties = {
-          title   = "APP Disk Free % (CloudWatch Agent)"
+          title   = "APP LogicalDisk % Free"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
           metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 24
+        height = 6
+        properties = {
+          title   = "APP Network In/Out"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Average"
+          period  = 60
+          metrics = [
+            ["AWS/EC2", "NetworkIn", "InstanceId", var.app_instance_id],
+            ["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]
+          ]
         }
       }
     ]

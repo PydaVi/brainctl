@@ -1,32 +1,77 @@
-# Blueprint `k8s-workers` (Kubernetes self-managed em EC2)
+# Blueprint `k8s-workers`
 
-> **Objetivo:** laboratório barato, didático e destrutível para aprender kubeadm sem EKS.
+## 1. Escopo
 
-## Arquitetura (MVP)
+O blueprint `k8s-workers` provisiona um cluster Kubernetes self-managed em EC2, baseado em `kubeadm`, com foco em ambientes de laboratório e validação técnica.
 
-- 1x EC2 `control-plane` com `kubeadm init`
-- 2x EC2 `workers` com `kubeadm join` automático
-- 1 Security Group compartilhado para cluster
-- 1 IAM Role + Instance Profile para as instâncias
-- Bootstrap via `user_data` (instala containerd + kubeadm/kubelet/kubectl)
+A implementação atual cobre:
 
-Fluxo de rede mínimo:
-- Porta `6443/tcp` (API Server) entre nós do cluster
-- Tráfego node-to-node liberado dentro do próprio SG
-- `22/tcp` opcional via `k8s.admin_cidr`
-- Egress aberto para instalação de pacotes e pull de imagens
-- NAT Gateway opcional para saída de internet quando os nós estão em subnet privada
+- 1 nó `control-plane`.
+- N nós `worker`.
+- bootstrap automatizado via `user_data`.
+- integração opcional com AWS Systems Manager (SSM).
+- caminho opcional de saída para internet via NAT Gateway para instalação de dependências de bootstrap.
 
-## Fluxo de bootstrap
+## 2. Topologia provisionada
 
-1. Control-plane sobe primeiro.
-2. User-data instala runtime e binários do Kubernetes.
-3. `kubeadm init` cria o cluster.
-4. Script gera `join.sh` e publica temporariamente em HTTP interno (`:8080`) no control-plane.
-5. Workers sobem, baixam `join.sh` e executam `kubeadm join` automaticamente.
-6. Com Flannel aplicado, os nós ficam `Ready`.
+### 2.1 Recursos principais
 
-## Exemplo de contrato (`app.yaml`)
+- `aws_instance.control_plane`
+- `aws_instance.workers`
+- `aws_security_group.cluster`
+- `aws_iam_role.instance`
+- `aws_iam_instance_profile.instance`
+
+### 2.2 Recursos opcionais (SSM)
+
+Quando `k8s.enable_ssm: true` e `k8s.enable_ssm_vpc_endpoints: true`:
+
+- `aws_security_group.ssm_endpoints`
+- `aws_vpc_endpoint.ssm`
+- `aws_vpc_endpoint.ssmmessages`
+- `aws_vpc_endpoint.ec2messages`
+
+### 2.3 Recursos opcionais (egresso via NAT)
+
+Quando `k8s.enable_nat_gateway: true`:
+
+- `aws_eip.nat`
+- `aws_nat_gateway.cluster`
+- `aws_route.private_internet_via_nat`
+- `aws_subnet.nat_public` (quando `public_subnet_id` não for informado)
+- `aws_route_table.nat_public` + associação
+- `aws_route_table.private_nat` + associação (quando `private_route_table_id` não for informado)
+
+## 3. Fluxo de bootstrap
+
+1. Instância de control-plane inicializa e instala runtime/container tooling e binários Kubernetes.
+2. `kubeadm init` executa no control-plane.
+3. Token/comando de join é disponibilizado internamente para os workers.
+4. Workers executam `kubeadm join` automaticamente.
+5. Com CNI aplicado pelo bootstrap, os nós convergem para estado `Ready`.
+
+## 4. Requisitos de rede
+
+### 4.1 Tráfego interno do cluster
+
+- Permissão de tráfego entre nós no mesmo security group (`self`).
+- Porta `6443/tcp` entre nós para API server.
+
+### 4.2 Acesso administrativo
+
+- Porta `22/tcp` opcional, controlada por `k8s.admin_cidr`.
+- Alternativamente, acesso via SSM quando habilitado.
+
+### 4.3 Dependências de internet para bootstrap
+
+A instalação de dependências (apt, repositórios Kubernetes, pull de imagens) requer conectividade de saída.
+
+Opções suportadas:
+
+- subnet com rota de internet já existente; ou
+- NAT Gateway gerenciado pelo blueprint (`enable_nat_gateway: true`).
+
+## 5. Contrato de configuração (`app.yaml`)
 
 ```yaml
 workload:
@@ -48,88 +93,63 @@ k8s:
   worker_count: 2
   kubernetes_version: "1.30"
   pod_cidr: "10.244.0.0/16"
-  key_name: "" # opcional: use chave existente; vazio => acesso via SSM
-  admin_cidr: "0.0.0.0/0" # para lab; restrinja em ambientes reais
+  key_name: ""
+  admin_cidr: "0.0.0.0/0"
+
+  # caminho de egresso opcional via NAT
   enable_nat_gateway: true
-  public_subnet_id: "" # opcional: se vazio, o módulo cria uma subnet pública para o NAT
+  public_subnet_id: ""
   public_subnet_cidr: "10.0.254.0/24"
-  internet_gateway_id: "" # opcional: se vazio, detecta automaticamente IGW da VPC
-  private_route_table_id: "" # opcional: se vazio, cria/associa uma route table privada para o subnet_id
+  internet_gateway_id: ""
+  private_route_table_id: ""
+
+  # operação e acesso
   enable_ssm: true
   enable_ssm_vpc_endpoints: true
   enable_detailed_monitoring: false
 ```
 
-## Contratos exemplo no repositório
+## 6. Semântica dos parâmetros de NAT
 
-- `stacks/k8s-workers/dev`
-- `stacks/k8s-workers/prod`
+- `enable_nat_gateway`
+  - `true`: habilita criação/configuração de caminho NAT para egress.
+  - `false`: não provisiona recursos de NAT.
 
-Use esses contratos como ponto de partida e ajuste VPC/subnet/chave conforme sua conta.
+- `public_subnet_id`
+  - informado: reutiliza subnet pública existente para o NAT Gateway.
+  - vazio: cria subnet pública no mesmo AZ do `subnet_id` privado.
 
-## Acesso às instâncias (importante)
+- `public_subnet_cidr`
+  - usado apenas quando `public_subnet_id` está vazio.
 
-Quando `enable_ssm: true` e `enable_ssm_vpc_endpoints: true`, o blueprint cria automaticamente endpoints privados de `ssm`, `ssmmessages` e `ec2messages` para acesso SSM em subnet privada.
+- `internet_gateway_id`
+  - informado: reutiliza IGW existente.
+  - vazio: faz descoberta de IGW anexado à VPC.
 
-Para dependências de bootstrap que exigem internet (apt, repositórios Kubernetes, pull de imagens), ative `enable_nat_gateway: true`. O módulo cria NAT Gateway + EIP e configura rota `0.0.0.0/0` da subnet privada para o NAT. Você também pode informar `public_subnet_id`, `internet_gateway_id` e `private_route_table_id` existentes para reutilizar recursos sem recriar route tables.
+- `private_route_table_id`
+  - informado: cria rota default para NAT na route table especificada.
+  - vazio: cria route table privada dedicada e associa ao `subnet_id`.
 
-- Se `k8s.key_name` estiver vazio, o Terraform cria EC2 sem chave SSH (recomendado para lab com SSM).
-- Se você preencher `k8s.key_name`, precisa ser um **Key Pair já existente na região**.
-- O erro `InvalidKeyPair.NotFound` indica exatamente que o nome informado não existe na conta/região.
+## 7. Outputs esperados
 
-## Outputs e validação
+O blueprint publica, entre outros:
 
-O blueprint publica outputs com:
-- IP/DNS do control-plane
-- IDs dos workers
-- Instruções para obter kubeconfig
-- Comando de validação
+- ID/IP/DNS do control-plane.
+- IDs das instâncias worker.
+- instruções para recuperação de kubeconfig.
+- comando de validação do cluster.
 
-Validação recomendada:
-
-```bash
-ssh -i <key.pem> ubuntu@<control-plane-public-dns> 'kubectl get nodes -o wide'
-# (somente se key_name apontar para um key pair válido)
-```
-
-Ou copie o kubeconfig e rode localmente:
+## 8. Operação via CLI
 
 ```bash
-scp -i <key.pem> ubuntu@<control-plane-public-dns>:/home/ubuntu/.kube/config ./kubeconfig
-KUBECONFIG=./kubeconfig kubectl get nodes
-```
-
-## Como destruir
-
-```bash
+go run ./cmd/brainctl plan --stack-dir stacks/k8s-workers/dev
+go run ./cmd/brainctl apply --stack-dir stacks/k8s-workers/dev
 go run ./cmd/brainctl destroy --stack-dir stacks/k8s-workers/dev
 ```
 
-Esse blueprint é intencionalmente efêmero: destrua e reprovisione sempre que quiser repetir o aprendizado.
+## 9. Limitações conhecidas
 
-## Custo e boas práticas
-
-- Comece com `t3.medium` para control-plane e workers.
-- Use apenas uma subnet para reduzir complexidade e custo no lab.
-- Limite `admin_cidr` ao seu IP para reduzir exposição.
-- Prefira `enable_ssm: true` para acesso sem SSH público.
-- Desligue/destroi ao final do estudo.
-
-## Limitações conhecidas
-
-- **Sem HA** de control-plane.
-- **Sem EKS** (sem managed control plane).
-- **Sem hardening completo** de produção (cripto, auditoria, policies avançadas).
-- Join via HTTP interno é simplificação didática para laboratório.
-- Não faz upgrade automatizado de versão Kubernetes.
-
-## Opinião prática (próximos passos)
-
-Se quiser evoluir este blueprint sem perder simplicidade:
-
-1. Mudar bootstrap para `cloud-init` em múltiplas fases (mais observabilidade de falha).
-2. Trocar mecanismo de join para SSM Parameter Store (mais seguro que HTTP interno).
-3. Separar SG de control-plane e workers.
-4. Criar opção de multi-subnet para workers.
-5. Adicionar instalação opcional de metrics-server e ingress-nginx.
-
+- arquitetura sem alta disponibilidade de control-plane.
+- sem integração EKS (control plane gerenciado).
+- fluxo de join simplificado para laboratório.
+- sem rotina de upgrade automatizado de versão Kubernetes.

@@ -123,6 +123,21 @@ resource "aws_cloudwatch_dashboard" "app" {
             period  = 60
             metrics = [[var.cw_agent_namespace, "LogicalDisk Avg. Disk sec/Transfer", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
           }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP CPUCreditBalance"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [["AWS/EC2", "CPUCreditBalance", "InstanceId", var.app_instance_id]]
+          }
         }
       ],
       var.enable_lb ? [

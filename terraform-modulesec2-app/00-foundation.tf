@@ -81,7 +81,10 @@ locals {
       }
       metrics_collected = {
         LogicalDisk = {
-          measurement = ["% Free Space"]
+          measurement = [
+            "% Free Space",
+            "Avg. Disk sec/Transfer"
+          ]
           resources   = ["*"]
         }
         Memory = {

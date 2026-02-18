@@ -108,13 +108,28 @@ resource "aws_cloudwatch_dashboard" "app" {
             period  = 60
             metrics = [[var.cw_agent_namespace, "tcp_connections_established", "InstanceId", var.app_instance_id, "objectname", "TCPv4"]]
           }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP Disk Latency"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "LogicalDisk Avg. Disk sec/Transfer", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          }
         }
       ],
       var.enable_lb ? [
         {
           type   = "metric"
           x      = 0
-          y      = 18
+          y      = 24
           width  = 12
           height = 6
           properties = {
@@ -129,7 +144,7 @@ resource "aws_cloudwatch_dashboard" "app" {
         {
           type   = "metric"
           x      = 12
-          y      = 18
+          y      = 24
           width  = 12
           height = 6
           properties = {
@@ -144,7 +159,7 @@ resource "aws_cloudwatch_dashboard" "app" {
         {
           type   = "metric"
           x      = 0
-          y      = 24
+          y      = 30
           width  = 12
           height = 6
           properties = {
@@ -162,7 +177,7 @@ resource "aws_cloudwatch_dashboard" "app" {
         {
           type   = "metric"
           x      = 12
-          y      = 24
+          y      = 30
           width  = 12
           height = 6
           properties = {

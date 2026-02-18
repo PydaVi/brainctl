@@ -44,8 +44,12 @@ module "k8s_workers" {
   worker_count           = {{ .K8s.WorkerCount }}
   kubernetes_version     = "{{ .K8s.KubernetesVersion }}"
   pod_cidr               = "{{ .K8s.PodCIDR }}"
-  key_name               = "{{ .K8s.KeyName }}"
-  admin_cidr             = "{{ .K8s.AdminCIDR }}"
+  key_name                 = "{{ .K8s.KeyName }}"
+  admin_cidr               = "{{ .K8s.AdminCIDR }}"
+  enable_nat_gateway       = {{ .EnableNatGateway }}
+  public_subnet_id         = "{{ .K8s.PublicSubnetID }}"
+  public_subnet_cidr       = "{{ .K8s.PublicSubnetCIDR }}"
+  internet_gateway_id      = "{{ .K8s.InternetGatewayID }}"
   enable_ssm               = {{ .EnableSSM }}
   enable_ssm_vpc_endpoints = {{ .EnableSSMVPCEndpoints }}
   enable_detailed_monitoring = {{ .EnableDetailedMonitoring }}
@@ -91,6 +95,7 @@ output "validation_command" {
 
 type renderData struct {
 	*config.AppConfig
+	EnableNatGateway         bool
 	EnableSSM                bool
 	EnableSSMVPCEndpoints    bool
 	EnableDetailedMonitoring bool
@@ -127,6 +132,7 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 
 	data := renderData{
 		AppConfig:                cfg,
+		EnableNatGateway:         cfg.K8s.EnableNatGateway != nil && *cfg.K8s.EnableNatGateway,
 		EnableSSM:                cfg.K8s.EnableSSM != nil && *cfg.K8s.EnableSSM,
 		EnableSSMVPCEndpoints:    cfg.K8s.EnableSSMVPCEndpoints != nil && *cfg.K8s.EnableSSMVPCEndpoints,
 		EnableDetailedMonitoring: cfg.K8s.EnableDetailedMonitoring != nil && *cfg.K8s.EnableDetailedMonitoring,

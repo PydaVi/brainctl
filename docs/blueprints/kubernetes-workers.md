@@ -15,6 +15,7 @@ Fluxo de rede mínimo:
 - Tráfego node-to-node liberado dentro do próprio SG
 - `22/tcp` opcional via `k8s.admin_cidr`
 - Egress aberto para instalação de pacotes e pull de imagens
+- NAT Gateway opcional para saída de internet quando os nós estão em subnet privada
 
 ## Fluxo de bootstrap
 
@@ -49,6 +50,10 @@ k8s:
   pod_cidr: "10.244.0.0/16"
   key_name: "" # opcional: use chave existente; vazio => acesso via SSM
   admin_cidr: "0.0.0.0/0" # para lab; restrinja em ambientes reais
+  enable_nat_gateway: true
+  public_subnet_id: "" # opcional: se vazio, o módulo cria uma subnet pública para o NAT
+  public_subnet_cidr: "10.0.254.0/24"
+  internet_gateway_id: "" # opcional: se vazio, detecta automaticamente IGW da VPC
   enable_ssm: true
   enable_ssm_vpc_endpoints: true
   enable_detailed_monitoring: false
@@ -63,7 +68,9 @@ Use esses contratos como ponto de partida e ajuste VPC/subnet/chave conforme sua
 
 ## Acesso às instâncias (importante)
 
-Quando `enable_ssm: true` e `enable_ssm_vpc_endpoints: true`, o blueprint cria automaticamente endpoints privados de `ssm`, `ssmmessages` e `ec2messages` para funcionar também em subnet privada sem NAT.
+Quando `enable_ssm: true` e `enable_ssm_vpc_endpoints: true`, o blueprint cria automaticamente endpoints privados de `ssm`, `ssmmessages` e `ec2messages` para acesso SSM em subnet privada.
+
+Para dependências de bootstrap que exigem internet (apt, repositórios Kubernetes, pull de imagens), ative `enable_nat_gateway: true`. O módulo cria NAT Gateway + EIP e configura rota `0.0.0.0/0` da subnet privada para o NAT. Você também pode informar `public_subnet_id` e `internet_gateway_id` existentes para reutilizar recursos.
 
 - Se `k8s.key_name` estiver vazio, o Terraform cria EC2 sem chave SSH (recomendado para lab com SSM).
 - Se você preencher `k8s.key_name`, precisa ser um **Key Pair já existente na região**.

@@ -22,13 +22,96 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+data "aws_subnet" "private" {
+  id = var.subnet_id
+}
+
+data "aws_route_table" "private" {
+  subnet_id = var.subnet_id
+}
+
+data "aws_internet_gateway" "selected" {
+  count = local.create_nat_gateway && trimspace(var.internet_gateway_id) == "" ? 1 : 0
+
+  filter {
+    name   = "attachment.vpc-id"
+    values = [var.vpc_id]
+  }
+}
+
 locals {
-  cluster_name         = "${var.name}-${var.environment}"
-  control_plane_ami    = var.control_plane_ami != "" ? var.control_plane_ami : data.aws_ami.ubuntu.id
-  worker_ami           = var.worker_ami != "" ? var.worker_ami : data.aws_ami.ubuntu.id
-  ssh_enabled          = trimspace(var.admin_cidr) != ""
-  endpoint_subnet_ids  = length(var.endpoint_subnet_ids) > 0 ? var.endpoint_subnet_ids : [var.subnet_id]
-  create_ssm_endpoints = var.enable_ssm && var.enable_ssm_vpc_endpoints
+  cluster_name           = "${var.name}-${var.environment}"
+  control_plane_ami      = var.control_plane_ami != "" ? var.control_plane_ami : data.aws_ami.ubuntu.id
+  worker_ami             = var.worker_ami != "" ? var.worker_ami : data.aws_ami.ubuntu.id
+  ssh_enabled            = trimspace(var.admin_cidr) != ""
+  endpoint_subnet_ids    = length(var.endpoint_subnet_ids) > 0 ? var.endpoint_subnet_ids : [var.subnet_id]
+  create_ssm_endpoints   = var.enable_ssm && var.enable_ssm_vpc_endpoints
+  create_nat_gateway     = var.enable_nat_gateway
+  nat_public_subnet_cidr = trimspace(var.public_subnet_cidr) != "" ? var.public_subnet_cidr : "10.0.254.0/24"
+}
+
+resource "aws_subnet" "nat_public" {
+  count = local.create_nat_gateway && trimspace(var.public_subnet_id) == "" ? 1 : 0
+
+  vpc_id                  = var.vpc_id
+  cidr_block              = local.nat_public_subnet_cidr
+  availability_zone       = data.aws_subnet.private.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "${local.cluster_name}-nat-public"
+  }
+}
+
+resource "aws_route_table" "nat_public" {
+  count  = local.create_nat_gateway ? 1 : 0
+  vpc_id = var.vpc_id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = trimspace(var.internet_gateway_id) != "" ? var.internet_gateway_id : data.aws_internet_gateway.selected[0].id
+  }
+
+  tags = {
+    Name = "${local.cluster_name}-nat-public-rt"
+  }
+}
+
+resource "aws_route_table_association" "nat_public" {
+  count = local.create_nat_gateway ? 1 : 0
+
+  subnet_id      = trimspace(var.public_subnet_id) != "" ? var.public_subnet_id : aws_subnet.nat_public[0].id
+  route_table_id = aws_route_table.nat_public[0].id
+}
+
+resource "aws_eip" "nat" {
+  count  = local.create_nat_gateway ? 1 : 0
+  domain = "vpc"
+
+  tags = {
+    Name = "${local.cluster_name}-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "cluster" {
+  count = local.create_nat_gateway ? 1 : 0
+
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = trimspace(var.public_subnet_id) != "" ? var.public_subnet_id : aws_subnet.nat_public[0].id
+
+  tags = {
+    Name = "${local.cluster_name}-nat-gateway"
+  }
+
+  depends_on = [aws_route_table_association.nat_public]
+}
+
+resource "aws_route" "private_internet_via_nat" {
+  count = local.create_nat_gateway ? 1 : 0
+
+  route_table_id         = data.aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.cluster[0].id
 }
 
 resource "aws_security_group" "cluster" {
@@ -183,6 +266,8 @@ resource "aws_instance" "control_plane" {
   })
 
   depends_on = [
+    aws_nat_gateway.cluster,
+    aws_route.private_internet_via_nat,
     aws_vpc_endpoint.ssm,
     aws_vpc_endpoint.ssmmessages,
     aws_vpc_endpoint.ec2messages,
@@ -205,11 +290,13 @@ resource "aws_instance" "workers" {
   monitoring             = var.enable_detailed_monitoring
 
   user_data = templatefile("${path.module}/templates/worker.sh.tftpl", {
-    kubernetes_version         = var.kubernetes_version
-    control_plane_private_ip   = aws_instance.control_plane.private_ip
+    kubernetes_version       = var.kubernetes_version
+    control_plane_private_ip = aws_instance.control_plane.private_ip
   })
 
   depends_on = [
+    aws_nat_gateway.cluster,
+    aws_route.private_internet_via_nat,
     aws_instance.control_plane,
     aws_vpc_endpoint.ssm,
     aws_vpc_endpoint.ssmmessages,

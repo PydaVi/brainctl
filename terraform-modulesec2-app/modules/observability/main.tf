@@ -47,7 +47,7 @@ resource "aws_cloudwatch_dashboard" "app" {
             region  = var.region
             stat    = "Average"
             period  = 60
-            metrics = [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id]]
+            metrics = [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
             yAxis = {
               left = {
                 min = 0

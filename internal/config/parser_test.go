@@ -229,3 +229,42 @@ func TestValidate_RecoveryBackupDBRequiresEC2Mode(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestValidate_K8sWorkersMinimal(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "k8s-workers"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-k8s"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+
+	if cfg.K8s.WorkerCount != 2 {
+		t.Fatalf("expected default k8s.worker_count=2, got %d", cfg.K8s.WorkerCount)
+	}
+	if cfg.K8s.ControlPlaneInstanceType != "t3.medium" {
+		t.Fatalf("expected default control plane type t3.medium, got %q", cfg.K8s.ControlPlaneInstanceType)
+	}
+	if cfg.K8s.EnableSSMVPCEndpoints == nil || !*cfg.K8s.EnableSSMVPCEndpoints {
+		t.Fatalf("expected default k8s.enable_ssm_vpc_endpoints=true")
+	}
+}
+
+func TestValidate_InvalidWorkloadType(t *testing.T) {
+	t.Parallel()
+
+	cfg := minimalValidConfig()
+	cfg.Workload.Type = "invalid"
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "workload.type must be one of: ec2-app, k8s-workers" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

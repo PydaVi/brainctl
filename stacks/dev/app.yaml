@@ -52,7 +52,7 @@ lb:
   listener_port: 80
   target_port: 80
   allowed_cidr: 0.0.0.0/0
-  instance_count: 1
+  instance_count: 2
 
 app_scaling:
   enabled: false

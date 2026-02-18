@@ -43,6 +43,8 @@ type AppConfig struct {
 	Observability ObservabilityConfig `yaml:"observability"`
 	Recovery      RecoveryConfig      `yaml:"recovery"`
 
+	K8s K8sWorkersConfig `yaml:"k8s"`
+
 	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
 	RuntimeOverrides RuntimeOverrides `yaml:"-"`
 }
@@ -51,6 +53,22 @@ type AppConfig struct {
 type WorkloadConfig struct {
 	Type    string `yaml:"type"`
 	Version string `yaml:"version"`
+}
+
+// K8sWorkersConfig define parâmetros do blueprint self-managed kubeadm em EC2.
+type K8sWorkersConfig struct {
+	ControlPlaneInstanceType string `yaml:"control_plane_instance_type"`
+	WorkerInstanceType       string `yaml:"worker_instance_type"`
+	ControlPlaneAMI          string `yaml:"control_plane_ami"`
+	WorkerAMI                string `yaml:"worker_ami"`
+	WorkerCount              int    `yaml:"worker_count"`
+	KubernetesVersion        string `yaml:"kubernetes_version"`
+	PodCIDR                  string `yaml:"pod_cidr"`
+	KeyName                  string `yaml:"key_name"`
+	AdminCIDR                string `yaml:"admin_cidr"`
+	EnableSSM                *bool  `yaml:"enable_ssm"`
+	EnableSSMVPCEndpoints    *bool  `yaml:"enable_ssm_vpc_endpoints"`
+	EnableDetailedMonitoring *bool  `yaml:"enable_detailed_monitoring"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -298,8 +316,8 @@ func (c *AppConfig) Validate() error {
 	if c.Workload.Version == "" {
 		c.Workload.Version = "v1"
 	}
-	if c.Workload.Type != "ec2-app" {
-		return fmt.Errorf("workload.type must be 'ec2-app'")
+	if c.Workload.Type != "ec2-app" && c.Workload.Type != "k8s-workers" {
+		return fmt.Errorf("workload.type must be one of: ec2-app, k8s-workers")
 	}
 	if c.Workload.Version != "v1" {
 		return fmt.Errorf("workload.version must be 'v1'")
@@ -320,6 +338,43 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.Infrastructure.SubnetID == "" {
 		return fmt.Errorf("infrastructure.subnet_id is required")
+	}
+
+	if c.Workload.Type == "k8s-workers" {
+		if c.K8s.ControlPlaneInstanceType == "" {
+			c.K8s.ControlPlaneInstanceType = "t3.medium"
+		}
+		if c.K8s.WorkerInstanceType == "" {
+			c.K8s.WorkerInstanceType = "t3.medium"
+		}
+		if c.K8s.WorkerCount == 0 {
+			c.K8s.WorkerCount = 2
+		}
+		if c.K8s.WorkerCount < 1 {
+			return fmt.Errorf("k8s.worker_count must be >= 1")
+		}
+		if c.K8s.KubernetesVersion == "" {
+			c.K8s.KubernetesVersion = "1.30"
+		}
+		if c.K8s.PodCIDR == "" {
+			c.K8s.PodCIDR = "10.244.0.0/16"
+		}
+		if c.K8s.AdminCIDR == "" {
+			c.K8s.AdminCIDR = "0.0.0.0/0"
+		}
+		if c.K8s.EnableSSM == nil {
+			v := true
+			c.K8s.EnableSSM = &v
+		}
+		if c.K8s.EnableSSMVPCEndpoints == nil {
+			v := true
+			c.K8s.EnableSSMVPCEndpoints = &v
+		}
+		if c.K8s.EnableDetailedMonitoring == nil {
+			v := false
+			c.K8s.EnableDetailedMonitoring = &v
+		}
+		return nil
 	}
 
 	if c.EC2.InstanceType == "" {

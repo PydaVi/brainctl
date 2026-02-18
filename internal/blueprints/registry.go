@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/PydaVi/brainctl/internal/blueprints/ec2app"
+	"github.com/PydaVi/brainctl/internal/blueprints/k8sworkers"
 	"github.com/PydaVi/brainctl/internal/config"
 )
 
@@ -27,6 +28,12 @@ var catalog = []Definition{
 		Version:     "v1",
 		Description: "EC2 app com opções de ALB/ASG, observabilidade e recovery",
 		Generate:    ec2app.Generate,
+	},
+	{
+		Type:        "k8s-workers",
+		Version:     "v1",
+		Description: "Kubernetes kubeadm em EC2 (1 control-plane + N workers) para laboratório",
+		Generate:    k8sworkers.Generate,
 	},
 }
 

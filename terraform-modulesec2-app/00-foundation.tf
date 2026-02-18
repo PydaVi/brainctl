@@ -85,23 +85,7 @@ locals {
           resources   = ["*"]
         }
         Memory = {
-          measurement = [
-            {
-              name   = "% Committed Bytes In Use"
-              rename = "mem_used_percent"
-              unit   = "Percent"
-            },
-            {
-              name   = "Available MBytes"
-              rename = "mem_available_mb"
-              unit   = "Megabytes"
-            },
-            {
-              name   = "Commit Limit"
-              rename = "mem_commit_limit_bytes"
-              unit   = "Bytes"
-            }
-          ]
+          measurement = ["% Committed Bytes In Use"]
         }
         TCPv4 = {
           measurement = [
@@ -112,6 +96,14 @@ locals {
             }
           ]
         }
+      }
+    }
+    processors = {
+      transform = {
+        metric_statements = [
+          "set(metric.unit, \"Percent\") where metric.name == \"Memory % Committed Bytes In Use\"",
+          "set(metric.name, \"mem_used_percent\") where metric.name == \"Memory % Committed Bytes In Use\""
+        ]
       }
     }
     logs = {
@@ -159,24 +151,16 @@ locals {
           resources   = ["*"]
         }
         Memory = {
-          measurement = [
-            {
-              name   = "% Committed Bytes In Use"
-              rename = "mem_used_percent"
-              unit   = "Percent"
-            },
-            {
-              name   = "Available MBytes"
-              rename = "mem_available_mb"
-              unit   = "Megabytes"
-            },
-            {
-              name   = "Commit Limit"
-              rename = "mem_commit_limit_bytes"
-              unit   = "Bytes"
-            }
-          ]
+          measurement = ["% Committed Bytes In Use"]
         }
+      }
+    }
+    processors = {
+      transform = {
+        metric_statements = [
+          "set(metric.unit, \"Percent\") where metric.name == \"Memory % Committed Bytes In Use\"",
+          "set(metric.name, \"mem_used_percent\") where metric.name == \"Memory % Committed Bytes In Use\""
+        ]
       }
     }
     logs = {

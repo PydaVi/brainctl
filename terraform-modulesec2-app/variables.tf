@@ -339,13 +339,13 @@ variable "alert_email" {
 }
 
 variable "enable_ssm_endpoints" {
-  description = "Cria endpoints privados para SSM e CloudWatch (ssm, ssmmessages, ec2messages, logs, monitoring) em VPC sem saída de internet"
+  description = "Cria endpoints privados para SSM, CloudWatch e STS (ssm, ssmmessages, ec2messages, logs, monitoring, sts) em VPC sem saída de internet"
   type        = bool
   default     = false
 }
 
 variable "enable_ssm_private_dns" {
-  description = "Habilita private DNS nos endpoints privados de SSM/CloudWatch (requer enableDnsSupport + enableDnsHostnames na VPC)"
+  description = "Habilita private DNS nos endpoints privados de SSM/CloudWatch/STS (requer enableDnsSupport + enableDnsHostnames na VPC)"
   type        = bool
   default     = false
 }

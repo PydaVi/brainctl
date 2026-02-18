@@ -197,3 +197,112 @@ resource "aws_vpc_endpoint" "sts" {
     ManagedBy   = "brainctl"
   }
 }
+
+
+resource "aws_ssm_document" "cwagent_apply_config" {
+  count           = var.enable_observability ? 1 : 0
+  name            = "${var.name}-${var.environment}-cwagent-apply-config"
+  document_type   = "Command"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Apply CloudWatch Agent config and restart service"
+    parameters = {
+      ConfigContent = {
+        type        = "String"
+        description = "CloudWatch Agent config JSON payload"
+      }
+    }
+    mainSteps = [
+      {
+        action = "aws:runPowerShellScript"
+        name   = "ApplyCloudWatchAgentConfig"
+        inputs = {
+          runCommand = [
+            "$ErrorActionPreference = 'Stop'",
+            "$configPath = 'C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json'",
+            "$agentCtl = 'C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1'",
+            "New-Item -ItemType Directory -Force -Path 'C:\ProgramData\Amazon\AmazonCloudWatchAgent' | Out-Null",
+            "$utf8NoBom = New-Object System.Text.UTF8Encoding($false)",
+            "$json = @'",
+            "{{ ConfigContent }}",
+            "'@",
+            "[System.IO.File]::WriteAllText($configPath, $json, $utf8NoBom)",
+            "if (Test-Path $agentCtl) {",
+            "  & $agentCtl -a fetch-config -m ec2 -s -c file:$configPath",
+            "} else {",
+            "  throw 'CloudWatch Agent control script not found'",
+            "}"
+          ]
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-cwagent-apply-config"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_ssm_association" "cwagent_apply_app" {
+  count = var.enable_observability ? 1 : 0
+
+  name                        = aws_ssm_document.cwagent_apply_config[0].name
+  association_name            = "${var.name}-${var.environment}-cwagent-app"
+  apply_only_at_cron_interval = false
+
+  targets {
+    key    = "tag:ManagedBy"
+    values = ["brainctl"]
+  }
+
+  targets {
+    key    = "tag:Environment"
+    values = [var.environment]
+  }
+
+  targets {
+    key    = "tag:Role"
+    values = ["app"]
+  }
+
+  parameters = {
+    ConfigContent = [local.cw_agent_config_app]
+  }
+
+  max_concurrency = "100%"
+  max_errors      = "100%"
+}
+
+resource "aws_ssm_association" "cwagent_apply_db" {
+  count = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
+
+  name                        = aws_ssm_document.cwagent_apply_config[0].name
+  association_name            = "${var.name}-${var.environment}-cwagent-db"
+  apply_only_at_cron_interval = false
+
+  targets {
+    key    = "tag:ManagedBy"
+    values = ["brainctl"]
+  }
+
+  targets {
+    key    = "tag:Environment"
+    values = [var.environment]
+  }
+
+  targets {
+    key    = "tag:Role"
+    values = ["db"]
+  }
+
+  parameters = {
+    ConfigContent = [local.cw_agent_config_db]
+  }
+
+  max_concurrency = "100%"
+  max_errors      = "100%"
+}

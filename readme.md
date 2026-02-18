@@ -118,6 +118,7 @@ O projeto provisiona automaticamente:
 * Alarmes configuráveis
 * Notificações via SNS
 * Integração com Session Manager
+* Configuração contínua do CloudWatch Agent via SSM State Manager (sem rebuild de instância)
 * Suporte a endpoints privados de SSM, CloudWatch (Logs/Metrics) e STS
 * Endpoints privados distribuídos nas subnets configuradas para infraestrutura
 

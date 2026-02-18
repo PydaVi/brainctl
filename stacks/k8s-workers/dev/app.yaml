@@ -8,8 +8,8 @@ app:
   region: us-east-1
 
 infrastructure:
-  vpc_id: vpc-xxxxxxxx
-  subnet_id: subnet-xxxxxxxx
+  vpc_id: vpc-06de730431bfb7107
+  subnet_id: subnet-0ad9bdbfb62dcfcca
 
 k8s:
   control_plane_instance_type: t3.medium

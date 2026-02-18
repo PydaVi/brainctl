@@ -3,86 +3,156 @@ resource "aws_cloudwatch_dashboard" "app" {
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
-    widgets = [
-      {
-        type   = "metric"
-        x      = 0
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          title   = "APP CPUUtilization"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = [["AWS/EC2", "CPUUtilization", "InstanceId", var.app_instance_id]]
+    widgets = concat(
+      [
+        {
+          type   = "metric"
+          x      = 0
+          y      = 0
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP CPUUtilization"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [["AWS/EC2", "CPUUtilization", "InstanceId", var.app_instance_id]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 0
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP StatusCheckFailed"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Maximum"
+            period  = 60
+            metrics = [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 6
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP Memory % Used"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "Memory % Used", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 6
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP LogicalDisk % Free"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 12
+          width  = 24
+          height = 6
+          properties = {
+            title   = "APP Network In/Out"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [
+              ["AWS/EC2", "NetworkIn", "InstanceId", var.app_instance_id],
+              ["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]
+            ]
+          }
         }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          title   = "APP StatusCheckFailed"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Maximum"
-          period  = 60
-          metrics = [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
+      ],
+      var.enable_lb ? [
+        {
+          type   = "metric"
+          x      = 0
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "ALB RequestCount"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Sum"
+            period  = 60
+            metrics = [["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP TG TargetResponseTime"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 24
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP TG 4XX/5XX"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Sum"
+            period  = 60
+            metrics = [
+              ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix],
+              ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 24
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP TG Healthy vs Unhealthy"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Maximum"
+            period  = 60
+            metrics = [
+              ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix],
+              ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]
+            ]
+          }
         }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 6
-        width  = 12
-        height = 6
-        properties = {
-          title   = "APP Memory % Used"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = [[var.cw_agent_namespace, "Memory % Used", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 6
-        width  = 12
-        height = 6
-        properties = {
-          title   = "APP LogicalDisk % Free"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 12
-        width  = 24
-        height = 6
-        properties = {
-          title   = "APP Network In/Out"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = [
-            ["AWS/EC2", "NetworkIn", "InstanceId", var.app_instance_id],
-            ["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]
-          ]
-        }
-      }
-    ]
+      ] : []
+    )
   })
 }
 

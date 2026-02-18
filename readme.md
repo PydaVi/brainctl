@@ -75,7 +75,8 @@ internal/terraform          # wrapper de comandos Terraform
 internal/workspace          # preparação do diretório de execução
 terraform-modulesec2-app    # módulo Terraform base ec2-app
 terraform-modulesk8s-workers # módulo Terraform do blueprint k8s-workers
-stacks/dev|prod             # contratos por ambiente
+stacks/ec2-app/dev|prod     # contratos do blueprint ec2-app
+stacks/k8s-workers/dev|prod # contratos do blueprint k8s-workers
 ```
 
 ---
@@ -205,11 +206,15 @@ Atualmente suportado:
 ## Execução da CLI
 
 ```bash
-go run ./cmd/brainctl plan   --stack-dir stacks/dev
-go run ./cmd/brainctl apply  --stack-dir stacks/dev
-go run ./cmd/brainctl destroy --stack-dir stacks/dev
-go run ./cmd/brainctl status --stack-dir stacks/dev
-go run ./cmd/brainctl output --stack-dir stacks/dev
+go run ./cmd/brainctl plan   --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
+
+# blueprint k8s-workers (lab kubeadm)
+go run ./cmd/brainctl plan   --stack-dir stacks/k8s-workers/dev
+go run ./cmd/brainctl apply  --stack-dir stacks/k8s-workers/dev
 ```
 
 ---

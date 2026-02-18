@@ -53,6 +53,13 @@ k8s:
   enable_detailed_monitoring: false
 ```
 
+## Contratos exemplo no repositório
+
+- `stacks/k8s-workers/dev`
+- `stacks/k8s-workers/prod`
+
+Use esses contratos como ponto de partida e ajuste VPC/subnet/chave conforme sua conta.
+
 ## Outputs e validação
 
 O blueprint publica outputs com:
@@ -77,7 +84,7 @@ KUBECONFIG=./kubeconfig kubectl get nodes
 ## Como destruir
 
 ```bash
-go run ./cmd/brainctl destroy --stack-dir <stack-dir>
+go run ./cmd/brainctl destroy --stack-dir stacks/k8s-workers/dev
 ```
 
 Esse blueprint é intencionalmente efêmero: destrua e reprovisione sempre que quiser repetir o aprendizado.

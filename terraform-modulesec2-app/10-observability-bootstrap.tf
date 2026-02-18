@@ -221,9 +221,9 @@ resource "aws_ssm_document" "cwagent_apply_config" {
         inputs = {
           runCommand = [
             "$ErrorActionPreference = 'Stop'",
-            "$configPath = 'C:\ProgramData\Amazon\AmazonCloudWatchAgent\config.json'",
-            "$agentCtl = 'C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1'",
-            "New-Item -ItemType Directory -Force -Path 'C:\ProgramData\Amazon\AmazonCloudWatchAgent' | Out-Null",
+            "$configPath = 'C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\config.json'",
+            "$agentCtl = 'C:\\Program Files\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1'",
+            "New-Item -ItemType Directory -Force -Path 'C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent' | Out-Null",
             "$utf8NoBom = New-Object System.Text.UTF8Encoding($false)",
             "$json = @'",
             "{{ ConfigContent }}",

@@ -269,8 +269,9 @@ resource "aws_ssm_association" "cwagent_apply_app" {
     values = ["app"]
   }
 
+  # aws_ssm_association.parameters expects map(string) for provider versions used by brainctl.
   parameters = {
-    ConfigContent = [local.cw_agent_config_app]
+    ConfigContent = local.cw_agent_config_app
   }
 
   max_concurrency = "100%"
@@ -299,8 +300,9 @@ resource "aws_ssm_association" "cwagent_apply_db" {
     values = ["db"]
   }
 
+  # Keep as plain string (not single-item list) to avoid tuple type errors in Terraform.
   parameters = {
-    ConfigContent = [local.cw_agent_config_db]
+    ConfigContent = local.cw_agent_config_db
   }
 
   max_concurrency = "100%"

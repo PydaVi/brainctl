@@ -66,6 +66,11 @@ type K8sWorkersConfig struct {
 	PodCIDR                  string `yaml:"pod_cidr"`
 	KeyName                  string `yaml:"key_name"`
 	AdminCIDR                string `yaml:"admin_cidr"`
+	EnableNatGateway         *bool  `yaml:"enable_nat_gateway"`
+	PublicSubnetID           string `yaml:"public_subnet_id"`
+	PublicSubnetCIDR         string `yaml:"public_subnet_cidr"`
+	InternetGatewayID        string `yaml:"internet_gateway_id"`
+	PrivateRouteTableID      string `yaml:"private_route_table_id"`
 	EnableSSM                *bool  `yaml:"enable_ssm"`
 	EnableSSMVPCEndpoints    *bool  `yaml:"enable_ssm_vpc_endpoints"`
 	EnableDetailedMonitoring *bool  `yaml:"enable_detailed_monitoring"`

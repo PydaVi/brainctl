@@ -105,7 +105,9 @@ Inclui:
 * Security Group mínimo para API server e tráfego entre nós
 * instruções de kubeconfig e validação do cluster
 
-Documentação completa: `docs/blueprints/kubernetes-workers.md`.
+Documentação técnica:
+- `docs/blueprints/ec2-app.md`
+- `docs/blueprints/kubernetes-workers.md`
 
 ---
 

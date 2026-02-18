@@ -29,6 +29,13 @@ variable "subnet_id" {
   type        = string
 }
 
+
+variable "endpoint_subnet_ids" {
+  description = "Lista de subnets para criação dos Interface VPC Endpoints privados (quando vazio, usa subnet_id)"
+  type        = list(string)
+  default     = []
+}
+
 variable "allowed_rdp_cidr" {
   description = "CIDR permitido para RDP nas EC2 (apenas no SG da APP por enquanto)"
   type        = string

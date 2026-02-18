@@ -119,6 +119,7 @@ O projeto provisiona automaticamente:
 * Notificações via SNS
 * Integração com Session Manager
 * Suporte a endpoints privados de SSM, CloudWatch (Logs/Metrics) e STS
+* Endpoints privados distribuídos nas subnets configuradas para infraestrutura
 
 Objetivo: o ambiente nasce com visibilidade operacional mínima garantida.
 

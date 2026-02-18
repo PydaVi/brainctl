@@ -39,6 +39,7 @@ module "app" {
 
   vpc_id    = "{{ .Infrastructure.VpcID }}"
   subnet_id = "{{ .Infrastructure.SubnetID }}"
+  endpoint_subnet_ids = [{{- range $i, $s := .Infrastructure.SubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
 
   instance_type       = "{{ .EC2.InstanceType }}"
   app_instance_count  = {{ .LB.InstanceCount }}

@@ -22,6 +22,7 @@ locals {
 
   app_instance_subnet_ids       = var.enable_lb && length(var.lb_subnet_ids) > 0 ? var.lb_subnet_ids : [var.subnet_id]
   db_subnet_group_subnet_ids    = var.enable_lb && length(var.lb_subnet_ids) > 0 ? var.lb_subnet_ids : [var.subnet_id]
+  endpoint_subnet_ids          = length(var.endpoint_subnet_ids) > 0 ? var.endpoint_subnet_ids : [var.subnet_id]
 
   resolved_app_ami = var.app_ami_id != "" ? var.app_ami_id : data.aws_ami.windows_2022.id
   resolved_db_ami  = var.db_ami_id  != "" ? var.db_ami_id  : data.aws_ami.windows_2022.id

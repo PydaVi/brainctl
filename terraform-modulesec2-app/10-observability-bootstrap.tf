@@ -106,7 +106,7 @@ resource "aws_vpc_endpoint" "ssm" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssm"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -122,7 +122,7 @@ resource "aws_vpc_endpoint" "ssmmessages" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -138,7 +138,7 @@ resource "aws_vpc_endpoint" "ec2messages" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.ec2messages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -154,7 +154,7 @@ resource "aws_vpc_endpoint" "logs" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.logs"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -170,7 +170,7 @@ resource "aws_vpc_endpoint" "monitoring" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.monitoring"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 
@@ -187,7 +187,7 @@ resource "aws_vpc_endpoint" "sts" {
   vpc_id              = var.vpc_id
   service_name        = "com.amazonaws.${var.region}.sts"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [var.subnet_id]
+  subnet_ids          = local.endpoint_subnet_ids
   security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
   private_dns_enabled = var.enable_ssm_private_dns
 

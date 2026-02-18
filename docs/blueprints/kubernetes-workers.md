@@ -47,7 +47,7 @@ k8s:
   worker_count: 2
   kubernetes_version: "1.30"
   pod_cidr: "10.244.0.0/16"
-  key_name: "minha-chave-ec2"
+  key_name: "" # opcional: use chave existente; vazio => acesso via SSM
   admin_cidr: "0.0.0.0/0" # para lab; restrinja em ambientes reais
   enable_ssm: true
   enable_detailed_monitoring: false
@@ -59,6 +59,12 @@ k8s:
 - `stacks/k8s-workers/prod`
 
 Use esses contratos como ponto de partida e ajuste VPC/subnet/chave conforme sua conta.
+
+## Acesso às instâncias (importante)
+
+- Se `k8s.key_name` estiver vazio, o Terraform cria EC2 sem chave SSH (recomendado para lab com SSM).
+- Se você preencher `k8s.key_name`, precisa ser um **Key Pair já existente na região**.
+- O erro `InvalidKeyPair.NotFound` indica exatamente que o nome informado não existe na conta/região.
 
 ## Outputs e validação
 
@@ -72,6 +78,7 @@ Validação recomendada:
 
 ```bash
 ssh -i <key.pem> ubuntu@<control-plane-public-dns> 'kubectl get nodes -o wide'
+# (somente se key_name apontar para um key pair válido)
 ```
 
 Ou copie o kubeconfig e rode localmente:

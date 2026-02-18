@@ -17,7 +17,7 @@ k8s:
   worker_count: 2
   kubernetes_version: "1.30"
   pod_cidr: "10.244.0.0/16"
-  key_name: "my-ec2-keypair"
+  key_name: "" # opcional: informe um key pair existente para acesso SSH
   admin_cidr: "10.0.0.0/24"
   enable_ssm: true
   enable_detailed_monitoring: true

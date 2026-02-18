@@ -148,3 +148,35 @@ resource "aws_vpc_endpoint" "ec2messages" {
     ManagedBy   = "brainctl"
   }
 }
+
+resource "aws_vpc_endpoint" "logs" {
+  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [var.subnet_id]
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = var.enable_ssm_private_dns
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-logs"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}
+
+resource "aws_vpc_endpoint" "monitoring" {
+  count               = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.region}.monitoring"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [var.subnet_id]
+  security_group_ids  = [aws_security_group.ssm_endpoints[0].id]
+  private_dns_enabled = var.enable_ssm_private_dns
+
+  tags = {
+    Name        = "${var.name}-${var.environment}-vpce-monitoring"
+    Environment = var.environment
+    ManagedBy   = "brainctl"
+  }
+}

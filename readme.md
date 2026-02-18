@@ -118,7 +118,7 @@ O projeto provisiona automaticamente:
 * Alarmes configuráveis
 * Notificações via SNS
 * Integração com Session Manager
-* Suporte a endpoints privados de SSM
+* Suporte a endpoints privados de SSM e CloudWatch (Logs/Metrics)
 
 Objetivo: o ambiente nasce com visibilidade operacional mínima garantida.
 

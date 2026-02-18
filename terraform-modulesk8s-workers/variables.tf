@@ -67,3 +67,13 @@ variable "enable_detailed_monitoring" {
   type    = bool
   default = false
 }
+
+variable "endpoint_subnet_ids" {
+  type    = list(string)
+  default = []
+}
+
+variable "enable_ssm_vpc_endpoints" {
+  type    = bool
+  default = true
+}

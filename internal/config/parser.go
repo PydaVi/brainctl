@@ -67,6 +67,7 @@ type K8sWorkersConfig struct {
 	KeyName                  string `yaml:"key_name"`
 	AdminCIDR                string `yaml:"admin_cidr"`
 	EnableSSM                *bool  `yaml:"enable_ssm"`
+	EnableSSMVPCEndpoints    *bool  `yaml:"enable_ssm_vpc_endpoints"`
 	EnableDetailedMonitoring *bool  `yaml:"enable_detailed_monitoring"`
 }
 
@@ -364,6 +365,10 @@ func (c *AppConfig) Validate() error {
 		if c.K8s.EnableSSM == nil {
 			v := true
 			c.K8s.EnableSSM = &v
+		}
+		if c.K8s.EnableSSMVPCEndpoints == nil {
+			v := true
+			c.K8s.EnableSSMVPCEndpoints = &v
 		}
 		if c.K8s.EnableDetailedMonitoring == nil {
 			v := false

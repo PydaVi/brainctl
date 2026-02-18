@@ -36,6 +36,7 @@ module "k8s_workers" {
 
   vpc_id                 = "{{ .Infrastructure.VpcID }}"
   subnet_id              = "{{ .Infrastructure.SubnetID }}"
+  endpoint_subnet_ids    = [{{- range $i, $s := .EndpointSubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
   control_plane_ami      = "{{ .K8s.ControlPlaneAMI }}"
   worker_ami             = "{{ .K8s.WorkerAMI }}"
   control_plane_type     = "{{ .K8s.ControlPlaneInstanceType }}"
@@ -45,7 +46,8 @@ module "k8s_workers" {
   pod_cidr               = "{{ .K8s.PodCIDR }}"
   key_name               = "{{ .K8s.KeyName }}"
   admin_cidr             = "{{ .K8s.AdminCIDR }}"
-  enable_ssm             = {{ .EnableSSM }}
+  enable_ssm               = {{ .EnableSSM }}
+  enable_ssm_vpc_endpoints = {{ .EnableSSMVPCEndpoints }}
   enable_detailed_monitoring = {{ .EnableDetailedMonitoring }}
 }
 `
@@ -90,7 +92,9 @@ output "validation_command" {
 type renderData struct {
 	*config.AppConfig
 	EnableSSM                bool
+	EnableSSMVPCEndpoints    bool
 	EnableDetailedMonitoring bool
+	EndpointSubnetIDs        []string
 }
 
 func Generate(wsDir string, cfg *config.AppConfig) error {
@@ -116,10 +120,17 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 	}
 	defer f.Close()
 
+	endpointSubnetIDs := cfg.Infrastructure.SubnetIDs
+	if len(endpointSubnetIDs) == 0 {
+		endpointSubnetIDs = []string{cfg.Infrastructure.SubnetID}
+	}
+
 	data := renderData{
 		AppConfig:                cfg,
 		EnableSSM:                cfg.K8s.EnableSSM != nil && *cfg.K8s.EnableSSM,
+		EnableSSMVPCEndpoints:    cfg.K8s.EnableSSMVPCEndpoints != nil && *cfg.K8s.EnableSSMVPCEndpoints,
 		EnableDetailedMonitoring: cfg.K8s.EnableDetailedMonitoring != nil && *cfg.K8s.EnableDetailedMonitoring,
+		EndpointSubnetIDs:        endpointSubnetIDs,
 	}
 
 	if err := tpl.Execute(f, data); err != nil {

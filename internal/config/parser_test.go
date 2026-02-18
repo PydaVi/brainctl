@@ -252,6 +252,9 @@ func TestValidate_K8sWorkersMinimal(t *testing.T) {
 	if cfg.K8s.ControlPlaneInstanceType != "t3.medium" {
 		t.Fatalf("expected default control plane type t3.medium, got %q", cfg.K8s.ControlPlaneInstanceType)
 	}
+	if cfg.K8s.EnableSSMVPCEndpoints == nil || !*cfg.K8s.EnableSSMVPCEndpoints {
+		t.Fatalf("expected default k8s.enable_ssm_vpc_endpoints=true")
+	}
 }
 
 func TestValidate_InvalidWorkloadType(t *testing.T) {

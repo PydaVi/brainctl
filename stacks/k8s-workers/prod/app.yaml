@@ -20,4 +20,5 @@ k8s:
   key_name: "" # opcional: informe um key pair existente para acesso SSH
   admin_cidr: "10.0.0.0/24"
   enable_ssm: true
+  enable_ssm_vpc_endpoints: true
   enable_detailed_monitoring: true

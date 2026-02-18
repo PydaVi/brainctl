@@ -50,6 +50,7 @@ k8s:
   key_name: "" # opcional: use chave existente; vazio => acesso via SSM
   admin_cidr: "0.0.0.0/0" # para lab; restrinja em ambientes reais
   enable_ssm: true
+  enable_ssm_vpc_endpoints: true
   enable_detailed_monitoring: false
 ```
 
@@ -61,6 +62,8 @@ k8s:
 Use esses contratos como ponto de partida e ajuste VPC/subnet/chave conforme sua conta.
 
 ## Acesso às instâncias (importante)
+
+Quando `enable_ssm: true` e `enable_ssm_vpc_endpoints: true`, o blueprint cria automaticamente endpoints privados de `ssm`, `ssmmessages` e `ec2messages` para funcionar também em subnet privada sem NAT.
 
 - Se `k8s.key_name` estiver vazio, o Terraform cria EC2 sem chave SSH (recomendado para lab com SSM).
 - Se você preencher `k8s.key_name`, precisa ser um **Key Pair já existente na região**.

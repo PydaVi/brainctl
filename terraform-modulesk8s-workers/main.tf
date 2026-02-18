@@ -26,7 +26,7 @@ locals {
   cluster_name      = "${var.name}-${var.environment}"
   control_plane_ami = var.control_plane_ami != "" ? var.control_plane_ami : data.aws_ami.ubuntu.id
   worker_ami        = var.worker_ami != "" ? var.worker_ami : data.aws_ami.ubuntu.id
-  ssh_enabled       = trim(var.admin_cidr) != ""
+  ssh_enabled       = trimspace(var.admin_cidr) != ""
 }
 
 resource "aws_security_group" "cluster" {
@@ -103,7 +103,7 @@ resource "aws_instance" "control_plane" {
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.cluster.id]
   iam_instance_profile   = aws_iam_instance_profile.instance.name
-  key_name               = trim(var.key_name) == "" ? null : var.key_name
+  key_name               = trimspace(var.key_name) == "" ? null : var.key_name
   monitoring             = var.enable_detailed_monitoring
 
   user_data = templatefile("${path.module}/templates/control-plane.sh.tftpl", {
@@ -124,7 +124,7 @@ resource "aws_instance" "workers" {
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [aws_security_group.cluster.id]
   iam_instance_profile   = aws_iam_instance_profile.instance.name
-  key_name               = trim(var.key_name) == "" ? null : var.key_name
+  key_name               = trimspace(var.key_name) == "" ? null : var.key_name
   monitoring             = var.enable_detailed_monitoring
 
   user_data = templatefile("${path.module}/templates/worker.sh.tftpl", {

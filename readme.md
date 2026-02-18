@@ -69,10 +69,12 @@ O foco é permitir que times descrevam o workload necessário enquanto o brainct
 cmd/brainctl                # entrada da CLI
 internal/config             # parser, defaults e validações
 internal/generator          # geração do workspace Terraform
-internal/blueprints/ec2app  # blueprint de workload
+internal/blueprints/ec2app  # blueprint de workload EC2 app
+internal/blueprints/k8sworkers # blueprint de workload Kubernetes lab
 internal/terraform          # wrapper de comandos Terraform
 internal/workspace          # preparação do diretório de execução
-terraform-modulesec2-app    # módulo Terraform base
+terraform-modulesec2-app    # módulo Terraform base ec2-app
+terraform-modulesk8s-workers # módulo Terraform do blueprint k8s-workers
 stacks/dev|prod             # contratos por ambiente
 ```
 
@@ -90,6 +92,19 @@ Inclui:
 * Instância de banco opcional
 * Security Groups padronizados
 * Outputs operacionais para troubleshooting e automação
+
+### k8s-workers
+
+Blueprint didático para Kubernetes self-managed em EC2 usando kubeadm (sem EKS).
+
+Inclui:
+
+* 1 control-plane + N workers
+* bootstrap automático com kubeadm init/join
+* Security Group mínimo para API server e tráfego entre nós
+* instruções de kubeconfig e validação do cluster
+
+Documentação completa: `docs/blueprints/kubernetes-workers.md`.
 
 ---
 

@@ -9,6 +9,7 @@ module "observability" {
   name        = var.name
   environment = var.environment
   region      = var.region
+  cw_agent_namespace = "BrainCTL/${var.name}/${var.environment}"
 
   cpu_high_threshold = var.cpu_high_threshold
   app_asg_min_size   = var.app_asg_min_size

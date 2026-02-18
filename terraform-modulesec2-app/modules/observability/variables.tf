@@ -72,3 +72,7 @@ variable "alarm_actions" {
   type    = list(string)
   default = []
 }
+
+variable "cw_agent_namespace" {
+  type = string
+}

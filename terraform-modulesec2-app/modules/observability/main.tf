@@ -41,12 +41,12 @@ resource "aws_cloudwatch_dashboard" "app" {
         width  = 12
         height = 6
         properties = {
-          title   = "APP Memory % (CWAgent)"
+          title   = "APP Memory % (CloudWatch Agent)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "Memory % Committed Bytes In Use", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
+          metrics = [[var.cw_agent_namespace, "Memory % Committed Bytes In Use", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
         }
       },
       {
@@ -56,12 +56,12 @@ resource "aws_cloudwatch_dashboard" "app" {
         width  = 12
         height = 6
         properties = {
-          title   = "APP Disk Free % (CWAgent)"
+          title   = "APP Disk Free % (CloudWatch Agent)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
         }
       }
     ]
@@ -244,12 +244,12 @@ resource "aws_cloudwatch_dashboard" "db_ec2" {
         width  = 12
         height = 6
         properties = {
-          title   = "DB Memory % (CWAgent)"
+          title   = "DB Memory % (CloudWatch Agent)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "Memory % Committed Bytes In Use", "InstanceId", var.db_instance_id, "objectname", "Memory"]]
+          metrics = [[var.cw_agent_namespace, "Memory % Committed Bytes In Use", "InstanceId", var.db_instance_id, "objectname", "Memory"]]
         }
       },
       {
@@ -259,12 +259,12 @@ resource "aws_cloudwatch_dashboard" "db_ec2" {
         width  = 12
         height = 6
         properties = {
-          title   = "DB Disk Free % (CWAgent)"
+          title   = "DB Disk Free % (CloudWatch Agent)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [["CWAgent", "LogicalDisk % Free Space", "InstanceId", var.db_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.db_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
         }
       }
     ]
@@ -401,7 +401,7 @@ resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "LogicalDisk % Free Space"
-  namespace           = "CWAgent"
+  namespace           = var.cw_agent_namespace
   period              = 60
   statistic           = "Average"
   threshold           = 15

@@ -1,0 +1,146 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-plan:
+    if: startsWith(github.head_ref, 'feature/') || startsWith(github.head_ref, 'fix/')
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      PLAN_OUTPUT_FILE: terraform-plan-output.txt
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials (Repository Secrets)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform checks and plan for all stacks
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          stacks=$(find stacks -mindepth 1 -maxdepth 1 -type d | sort)
+          if [[ -z "${stacks}" ]]; then
+            echo "Nenhuma stack encontrada em ./stacks" >&2
+            exit 1
+          fi
+
+          : > "${PLAN_OUTPUT_FILE}"
+
+          for stack in ${stacks}; do
+            if [[ ! -f "${stack}/app.yaml" ]]; then
+              echo "Ignorando ${stack}: app.yaml não encontrado"
+              continue
+            fi
+
+            echo "## Stack: ${stack}" | tee -a "${PLAN_OUTPUT_FILE}"
+            echo '```' | tee -a "${PLAN_OUTPUT_FILE}"
+
+            echo ">>> brainctl render --stack-dir ${stack}" | tee -a "${PLAN_OUTPUT_FILE}"
+            render_output=$(go run ./cmd/brainctl render --stack-dir "${stack}")
+            echo "${render_output}" | tee -a "${PLAN_OUTPUT_FILE}"
+
+            ws_dir=$(echo "${render_output}" | awk -F': ' '/Terraform workspace rendered at/ {print $2}')
+            if [[ -z "${ws_dir}" ]]; then
+              echo "Não foi possível identificar workspace para ${stack}" | tee -a "${PLAN_OUTPUT_FILE}"
+              exit 1
+            fi
+
+            echo ">>> terraform fmt -check -recursive ${ws_dir}" | tee -a "${PLAN_OUTPUT_FILE}"
+            terraform -chdir="${ws_dir}" fmt -check -recursive 2>&1 | tee -a "${PLAN_OUTPUT_FILE}"
+
+            echo ">>> terraform init ${ws_dir}" | tee -a "${PLAN_OUTPUT_FILE}"
+            terraform -chdir="${ws_dir}" init -input=false -no-color 2>&1 | tee -a "${PLAN_OUTPUT_FILE}"
+
+            echo ">>> terraform validate ${ws_dir}" | tee -a "${PLAN_OUTPUT_FILE}"
+            terraform -chdir="${ws_dir}" validate -no-color 2>&1 | tee -a "${PLAN_OUTPUT_FILE}"
+
+            echo ">>> terraform plan ${ws_dir}" | tee -a "${PLAN_OUTPUT_FILE}"
+            terraform -chdir="${ws_dir}" plan -input=false -no-color 2>&1 | tee -a "${PLAN_OUTPUT_FILE}"
+
+            echo '```' | tee -a "${PLAN_OUTPUT_FILE}"
+            echo | tee -a "${PLAN_OUTPUT_FILE}"
+          done
+
+      - name: Upload terraform plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-output
+          path: ${{ env.PLAN_OUTPUT_FILE }}
+
+      - name: Upsert PR comment with terraform plan
+        uses: actions/github-script@v7
+        env:
+          PLAN_OUTPUT_FILE: ${{ env.PLAN_OUTPUT_FILE }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- brainctl-terraform-plan -->';
+            const planOutput = fs.readFileSync(process.env.PLAN_OUTPUT_FILE, 'utf8');
+            const truncated = planOutput.length > 60000
+              ? `${planOutput.slice(0, 60000)}\n\n... output truncado no comentário. Veja o artifact terraform-plan-output para o conteúdo completo.`
+              : planOutput;
+
+            const body = `${marker}
+            ## Terraform plan (brainctl)
+
+            ${truncated}`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user.type === 'Bot' && comment.body && comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }

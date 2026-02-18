@@ -1,0 +1,59 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-apply-main
+  cancel-in-progress: false
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials (Repository Secrets)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform apply for all stacks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          stacks=$(find stacks -mindepth 1 -maxdepth 1 -type d | sort)
+          if [[ -z "${stacks}" ]]; then
+            echo "Nenhuma stack encontrada em ./stacks" >&2
+            exit 1
+          fi
+
+          for stack in ${stacks}; do
+            if [[ ! -f "${stack}/app.yaml" ]]; then
+              echo "Ignorando ${stack}: app.yaml não encontrado"
+              continue
+            fi
+
+            echo ">>> brainctl apply --stack-dir ${stack}"
+            go run ./cmd/brainctl apply --stack-dir "${stack}" --auto-approve
+          done

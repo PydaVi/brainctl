@@ -30,6 +30,16 @@ func NewRootCommand() *cobra.Command {
 		Short: "brainctl manages app infra from a declarative YAML",
 	}
 
+	renderCmd := &cobra.Command{
+		Use:   "render",
+		Short: "Generate terraform workspace without running terraform commands",
+		RunE: withRuntime(opts, false, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
+			fmt.Printf("Terraform workspace rendered at: %s\n", ctx.WSDir)
+			return nil
+		}),
+	}
+	applyCommonFlags(renderCmd, &opts)
+
 	planCmd := &cobra.Command{
 		Use:   "plan",
 		Short: "Generate terraform and run terraform init/plan",
@@ -91,7 +101,7 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
-	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, blueprintsCmd)
+	root.AddCommand(renderCmd, planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, blueprintsCmd)
 	return root
 }
 

@@ -80,7 +80,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           type   = "metric"
           x      = 0
           y      = 12
-          width  = 24
+          width  = 12
           height = 6
           properties = {
             title   = "APP Network In/Out"
@@ -92,6 +92,21 @@ resource "aws_cloudwatch_dashboard" "app" {
               ["AWS/EC2", "NetworkIn", "InstanceId", var.app_instance_id],
               ["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]
             ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 12
+          width  = 12
+          height = 6
+          properties = {
+            title   = "APP TCP Connections Established"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "tcp_connections_established", "InstanceId", var.app_instance_id, "objectname", "TCPv4"]]
           }
         }
       ],

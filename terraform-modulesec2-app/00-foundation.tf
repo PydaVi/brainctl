@@ -98,6 +98,15 @@ locals {
             }
           ]
         }
+        TCPv4 = {
+          measurement = [
+            {
+              name   = "Connections Established"
+              rename = "tcp_connections_established"
+              unit   = "Count"
+            }
+          ]
+        }
       }
     }
     logs = {

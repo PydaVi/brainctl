@@ -87,6 +87,11 @@ locals {
         Memory = {
           measurement = [
             {
+              name   = "% Committed Bytes In Use"
+              rename = "mem_used_percent"
+              unit   = "Percent"
+            },
+            {
               name   = "Available MBytes"
               rename = "mem_available_mb"
               unit   = "Megabytes"
@@ -155,6 +160,11 @@ locals {
         }
         Memory = {
           measurement = [
+            {
+              name   = "% Committed Bytes In Use"
+              rename = "mem_used_percent"
+              unit   = "Percent"
+            },
             {
               name   = "Available MBytes"
               rename = "mem_available_mb"

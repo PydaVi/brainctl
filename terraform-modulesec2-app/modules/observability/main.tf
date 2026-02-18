@@ -47,12 +47,7 @@ resource "aws_cloudwatch_dashboard" "app" {
             region  = var.region
             stat    = "Average"
             period  = 60
-            metrics = [
-              [var.cw_agent_namespace, "mem_available_mb", "InstanceId", var.app_instance_id, { id = "mAvail", visible = false }],
-              [".", "mem_commit_limit_bytes", ".", ".", { id = "mCommit", visible = false }],
-              [{ expression = "mCommit / 1024 / 1024", label = "TotalMB", id = "eTotal", visible = false }],
-              [{ expression = "100 - ((mAvail / eTotal) * 100)", label = "APP Memory % RAM Used", id = "eRamUsed" }]
-            ]
+            metrics = [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id]]
             yAxis = {
               left = {
                 min = 0

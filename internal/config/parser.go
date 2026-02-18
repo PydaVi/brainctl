@@ -70,6 +70,7 @@ type K8sWorkersConfig struct {
 	PublicSubnetID           string `yaml:"public_subnet_id"`
 	PublicSubnetCIDR         string `yaml:"public_subnet_cidr"`
 	InternetGatewayID        string `yaml:"internet_gateway_id"`
+	PrivateRouteTableID      string `yaml:"private_route_table_id"`
 	EnableSSM                *bool  `yaml:"enable_ssm"`
 	EnableSSMVPCEndpoints    *bool  `yaml:"enable_ssm_vpc_endpoints"`
 	EnableDetailedMonitoring *bool  `yaml:"enable_detailed_monitoring"`

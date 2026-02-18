@@ -26,10 +26,6 @@ data "aws_subnet" "private" {
   id = var.subnet_id
 }
 
-data "aws_route_table" "private" {
-  subnet_id = var.subnet_id
-}
-
 data "aws_internet_gateway" "selected" {
   count = local.create_nat_gateway && trimspace(var.internet_gateway_id) == "" ? 1 : 0
 
@@ -46,8 +42,9 @@ locals {
   ssh_enabled            = trimspace(var.admin_cidr) != ""
   endpoint_subnet_ids    = length(var.endpoint_subnet_ids) > 0 ? var.endpoint_subnet_ids : [var.subnet_id]
   create_ssm_endpoints   = var.enable_ssm && var.enable_ssm_vpc_endpoints
-  create_nat_gateway     = var.enable_nat_gateway
-  nat_public_subnet_cidr = trimspace(var.public_subnet_cidr) != "" ? var.public_subnet_cidr : "10.0.254.0/24"
+  create_nat_gateway               = var.enable_nat_gateway
+  use_existing_private_route_table = trimspace(var.private_route_table_id) != ""
+  nat_public_subnet_cidr           = trimspace(var.public_subnet_cidr) != "" ? var.public_subnet_cidr : "10.0.254.0/24"
 }
 
 resource "aws_subnet" "nat_public" {
@@ -106,12 +103,30 @@ resource "aws_nat_gateway" "cluster" {
   depends_on = [aws_route_table_association.nat_public]
 }
 
+resource "aws_route_table" "private_nat" {
+  count  = local.create_nat_gateway && !local.use_existing_private_route_table ? 1 : 0
+  vpc_id = var.vpc_id
+
+  tags = {
+    Name = "${local.cluster_name}-private-nat-rt"
+  }
+}
+
+resource "aws_route_table_association" "private_nat" {
+  count = local.create_nat_gateway && !local.use_existing_private_route_table ? 1 : 0
+
+  subnet_id      = var.subnet_id
+  route_table_id = aws_route_table.private_nat[0].id
+}
+
 resource "aws_route" "private_internet_via_nat" {
   count = local.create_nat_gateway ? 1 : 0
 
-  route_table_id         = data.aws_route_table.private.id
+  route_table_id         = local.use_existing_private_route_table ? var.private_route_table_id : aws_route_table.private_nat[0].id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.cluster[0].id
+
+  depends_on = [aws_route_table_association.private_nat]
 }
 
 resource "aws_security_group" "cluster" {

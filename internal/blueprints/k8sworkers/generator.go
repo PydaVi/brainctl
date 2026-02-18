@@ -50,6 +50,7 @@ module "k8s_workers" {
   public_subnet_id         = "{{ .K8s.PublicSubnetID }}"
   public_subnet_cidr       = "{{ .K8s.PublicSubnetCIDR }}"
   internet_gateway_id      = "{{ .K8s.InternetGatewayID }}"
+  private_route_table_id   = "{{ .K8s.PrivateRouteTableID }}"
   enable_ssm               = {{ .EnableSSM }}
   enable_ssm_vpc_endpoints = {{ .EnableSSMVPCEndpoints }}
   enable_detailed_monitoring = {{ .EnableDetailedMonitoring }}

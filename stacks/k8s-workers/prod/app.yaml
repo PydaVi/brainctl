@@ -23,6 +23,7 @@ k8s:
   public_subnet_id: "" # opcional: subnet pública existente para NAT; vazio => cria subnet pública
   public_subnet_cidr: "10.0.254.0/24" # usado apenas quando public_subnet_id estiver vazio
   internet_gateway_id: "" # opcional: internet gateway existente; vazio => detecta IGW da VPC
+  private_route_table_id: "" # opcional: route table privada existente; vazio => cria e associa ao subnet_id
   enable_ssm: true
   enable_ssm_vpc_endpoints: true
   enable_detailed_monitoring: true

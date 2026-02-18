@@ -78,6 +78,11 @@ variable "internet_gateway_id" {
   default = ""
 }
 
+variable "private_route_table_id" {
+  type    = string
+  default = ""
+}
+
 variable "enable_ssm" {
   type    = bool
   default = true

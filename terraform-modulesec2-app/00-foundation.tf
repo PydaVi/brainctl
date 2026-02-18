@@ -85,7 +85,18 @@ locals {
           resources   = ["*"]
         }
         Memory = {
-          measurement = ["% Committed Bytes In Use"]
+          measurement = [
+            {
+              name   = "Available MBytes"
+              rename = "mem_available_mb"
+              unit   = "Megabytes"
+            },
+            {
+              name   = "Commit Limit"
+              rename = "mem_commit_limit_bytes"
+              unit   = "Bytes"
+            }
+          ]
         }
       }
     }
@@ -134,7 +145,18 @@ locals {
           resources   = ["*"]
         }
         Memory = {
-          measurement = ["% Committed Bytes In Use"]
+          measurement = [
+            {
+              name   = "Available MBytes"
+              rename = "mem_available_mb"
+              unit   = "Megabytes"
+            },
+            {
+              name   = "Commit Limit"
+              rename = "mem_commit_limit_bytes"
+              unit   = "Bytes"
+            }
+          ]
         }
       }
     }

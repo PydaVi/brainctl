@@ -42,12 +42,23 @@ resource "aws_cloudwatch_dashboard" "app" {
           width  = 12
           height = 6
           properties = {
-            title   = "APP Memory % Used"
+            title   = "APP Memory % RAM Used"
             view    = "timeSeries"
             region  = var.region
             stat    = "Average"
             period  = 60
-            metrics = [[var.cw_agent_namespace, "Memory % Used", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
+            metrics = [
+              [var.cw_agent_namespace, "mem_available_mb", "InstanceId", var.app_instance_id, { id = "mAvail", visible = false }],
+              [".", "mem_commit_limit_bytes", ".", ".", { id = "mCommit", visible = false }],
+              [{ expression = "mCommit / 1024 / 1024", label = "TotalMB", id = "eTotal", visible = false }],
+              [{ expression = "100 - ((mAvail / eTotal) * 100)", label = "APP Memory % RAM Used", id = "eRamUsed" }]
+            ]
+            yAxis = {
+              left = {
+                min = 0
+                max = 100
+              }
+            }
           }
         },
         {
@@ -332,12 +343,12 @@ resource "aws_cloudwatch_dashboard" "db_ec2" {
         width  = 12
         height = 6
         properties = {
-          title   = "DB Memory % (CloudWatch Agent)"
+          title   = "DB Memory Available (MB)"
           view    = "timeSeries"
           region  = var.region
           stat    = "Average"
           period  = 60
-          metrics = [[var.cw_agent_namespace, "Memory % Committed Bytes In Use", "InstanceId", var.db_instance_id, "objectname", "Memory"]]
+          metrics = [[var.cw_agent_namespace, "mem_available_mb", "InstanceId", var.db_instance_id]]
         }
       },
       {

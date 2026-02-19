@@ -331,7 +331,7 @@ resource "aws_cloudwatch_dashboard" "sre" {
           metrics = [
             ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "total_requests", visible = false }],
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "target_5xx", visible = false }],
-            [{ expression = "100 * ((total_requests - target_5xx) / MAX([total_requests, 1]))", label = "Availability", id = "availability" }]
+            [{ expression = "IF(total_requests > 0, 100 * ((total_requests - target_5xx) / total_requests), 100)", label = "Availability", id = "availability" }]
           ]
           yAxis = {
             left = {

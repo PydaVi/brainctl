@@ -43,3 +43,26 @@ func TestParseMoney(t *testing.T) {
 		t.Fatalf("expected 0.01, got %.4f", got)
 	}
 }
+
+func TestParseInfracostJSONWithPrefixedLogs(t *testing.T) {
+	raw := []byte(`INFO using cached prices
+{
+  "projects": [
+    {
+      "breakdown": {
+        "resources": [
+          {"resourceType":"aws_instance","hourlyCost":"0.0416","monthlyCost":"30.37"}
+        ]
+      }
+    }
+  ]
+}`)
+
+	report, err := ParseInfracostJSON(raw)
+	if err != nil {
+		t.Fatalf("ParseInfracostJSON failed with prefixed logs: %v", err)
+	}
+	if len(report.Services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(report.Services))
+	}
+}

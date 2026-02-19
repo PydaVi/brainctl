@@ -1,6 +1,7 @@
 package cost
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -49,22 +50,37 @@ type infracostCostComponent struct {
 // EstimateInfraBase executa Infracost e gera um report resumido para custos base.
 func EstimateInfraBase(workspaceDir string) (*Report, error) {
 	cmd := exec.Command("infracost", "breakdown", "--path", workspaceDir, "--format", "json", "--no-color")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("infracost breakdown failed: %w\n%s", err, string(out))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("infracost breakdown failed: %w\n%s", err, strings.TrimSpace(stderr.String()))
 	}
 
-	report, err := ParseInfracostJSON(out)
+	report, err := ParseInfracostJSON(stdout.Bytes())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w\nraw_stdout=%q\nraw_stderr=%q", err, strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()))
 	}
 	return report, nil
+}
+
+func extractJSONObject(raw []byte) []byte {
+	raw = bytes.TrimSpace(raw)
+	start := bytes.IndexByte(raw, '{')
+	end := bytes.LastIndexByte(raw, '}')
+	if start >= 0 && end > start {
+		return raw[start : end+1]
+	}
+	return raw
 }
 
 // ParseInfracostJSON agrega por serviço os recursos da fase 1 (infra base).
 func ParseInfracostJSON(raw []byte) (*Report, error) {
 	var payload infracostOutput
-	if err := json.Unmarshal(raw, &payload); err != nil {
+	if err := json.Unmarshal(extractJSONObject(raw), &payload); err != nil {
 		return nil, fmt.Errorf("parse infracost json: %w", err)
 	}
 

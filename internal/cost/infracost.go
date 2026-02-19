@@ -87,10 +87,6 @@ func ParseInfracostJSON(raw []byte) (*Report, error) {
 	agg := map[string]*ServiceCost{}
 	for _, p := range payload.Projects {
 		for _, r := range p.Breakdown.Resources {
-			service, ok := classifyResourceType(r.ResourceType)
-			if !ok {
-				continue
-			}
 			hourly := parseMoney(r.HourlyCost)
 			monthly := parseMoney(r.MonthlyCost)
 
@@ -108,6 +104,14 @@ func ParseInfracostJSON(raw []byte) (*Report, error) {
 			}
 			if monthly == 0 && hourly > 0 {
 				monthly = hourly * monthlyHours
+			}
+
+			service, ok := classifyResourceType(r.ResourceType)
+			if !ok {
+				if hourly == 0 && monthly == 0 {
+					continue
+				}
+				service = fmt.Sprintf("Other (%s)", r.ResourceType)
 			}
 
 			entry, exists := agg[service]
@@ -154,6 +158,10 @@ func classifyResourceType(resourceType string) (string, bool) {
 		return "EIP", true
 	case "aws_vpc_endpoint":
 		return "VPC Endpoint", true
+	case "aws_cloudwatch_log_group":
+		return "CloudWatch Logs", true
+	case "aws_sns_topic":
+		return "SNS", true
 	default:
 		return "", false
 	}

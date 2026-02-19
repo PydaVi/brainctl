@@ -215,7 +215,7 @@ go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
-# custo base com Infracost (EC2, EBS, RDS, ALB, NAT, EIP, VPC Endpoint)
+# custo base com Infracost (EC2, EBS, RDS, ALB, NAT, EIP, VPC Endpoint, CloudWatch Logs + outros itens com preço no plan)
 go run ./cmd/brainctl cost   --stack-dir stacks/ec2-app/dev
 
 # blueprint k8s-workers (lab kubeadm)

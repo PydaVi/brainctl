@@ -80,6 +80,8 @@ func NewRootCommand() *cobra.Command {
 	}
 	applyCommonFlags(outputCmd, &opts)
 
+	costCmd := newCostCommand(&opts)
+
 	blueprintsCmd := &cobra.Command{
 		Use:   "blueprints",
 		Short: "List available workload blueprints",
@@ -91,7 +93,7 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
-	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, blueprintsCmd)
+	root.AddCommand(planCmd, applyCmd, destroyCmd, statusCmd, outputCmd, costCmd, blueprintsCmd)
 	return root
 }
 

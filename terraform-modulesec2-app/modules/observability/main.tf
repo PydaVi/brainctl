@@ -310,6 +310,42 @@ resource "aws_cloudwatch_dashboard" "app_asg" {
   })
 }
 
+resource "aws_cloudwatch_dashboard" "sre" {
+  count          = var.enable_observability && var.enable_lb ? 1 : 0
+  dashboard_name = "brainctl-${var.name}-${var.environment}-sre"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 6
+        properties = {
+          title   = "SRE Availability (%)"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "total_requests", visible = false }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "target_4xx", visible = false }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "target_5xx", visible = false }],
+            [{ expression = "IF(total_requests > 0, 100 * ((total_requests - target_4xx - target_5xx) / total_requests), 100)", label = "Availability", id = "availability" }]
+          ]
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_cloudwatch_dashboard" "db_ec2" {
   count          = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-db"

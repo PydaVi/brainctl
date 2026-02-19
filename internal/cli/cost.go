@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 
@@ -13,7 +14,15 @@ func newCostCommand(opts *RuntimeOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cost",
 		Short: "Estimate infra base cost using Infracost (service/hour and service/month)",
-		RunE: withRuntime(*opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
+		RunE: withRuntime(*opts, false, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
+			if _, err := exec.LookPath("infracost"); err != nil {
+				return fmt.Errorf("infracost não encontrado no PATH. Instale em https://www.infracost.io/docs/ ou via curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh")
+			}
+
+			if err := ctx.Runner.Init(); err != nil {
+				return err
+			}
+
 			report, err := cost.EstimateInfraBase(ctx.WSDir)
 			if err != nil {
 				return err

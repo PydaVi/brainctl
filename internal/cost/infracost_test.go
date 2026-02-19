@@ -14,6 +14,7 @@ func TestParseInfracostJSONInfraBase(t *testing.T) {
           {"resourceType":"aws_lb","hourlyCost":"0.0225","monthlyCost":"16.43"},
           {"resourceType":"aws_nat_gateway","hourlyCost":"0.045","monthlyCost":"32.85"},
           {"resourceType":"aws_eip","hourlyCost":"0.005","monthlyCost":"3.65"},
+          {"resourceType":"aws_vpc_endpoint","hourlyCost":"0.010","monthlyCost":"7.30"},
           {"resourceType":"aws_security_group","hourlyCost":"0","monthlyCost":"0"}
         ]
       }
@@ -26,8 +27,8 @@ func TestParseInfracostJSONInfraBase(t *testing.T) {
 		t.Fatalf("ParseInfracostJSON failed: %v", err)
 	}
 
-	if len(report.Services) != 6 {
-		t.Fatalf("expected 6 services, got %d", len(report.Services))
+	if len(report.Services) != 7 {
+		t.Fatalf("expected 7 services, got %d", len(report.Services))
 	}
 
 	if report.TotalHourly <= 0 {

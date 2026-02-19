@@ -152,6 +152,8 @@ func classifyResourceType(resourceType string) (string, bool) {
 		return "NAT Gateway", true
 	case "aws_eip":
 		return "EIP", true
+	case "aws_vpc_endpoint":
+		return "VPC Endpoint", true
 	default:
 		return "", false
 	}

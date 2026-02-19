@@ -56,7 +56,8 @@ func PrintPrettyStatus(v map[string]any) {
 
 	appDash := asString(v["observability_app_dashboard_name"], "")
 	dbDash := asString(v["observability_db_dashboard_name"], "")
-	if appDash != "" || dbDash != "" {
+	sreDash := asString(v["observability_sre_dashboard_name"], "")
+	if appDash != "" || dbDash != "" || sreDash != "" {
 		fmt.Println("  OBSERVABILITY")
 		if appDash != "" {
 			fmt.Printf("    app_dash   : %s\n", appDash)
@@ -65,6 +66,10 @@ func PrintPrettyStatus(v map[string]any) {
 		if dbDash != "" {
 			fmt.Printf("    db_dash    : %s\n", dbDash)
 			fmt.Printf("    db_url     : %s\n", asString(v["observability_db_dashboard_url"], "(none)"))
+		}
+		if sreDash != "" {
+			fmt.Printf("    sre_dash   : %s\n", sreDash)
+			fmt.Printf("    sre_url    : %s\n", asString(v["observability_sre_dashboard_url"], "(none)"))
 		}
 
 		snsTopic := asString(v["observability_sns_topic_arn"], "")

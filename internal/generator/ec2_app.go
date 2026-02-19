@@ -231,6 +231,16 @@ output "observability_db_dashboard_url" {
   description = "CloudWatch DB dashboard URL"
 }
 
+output "observability_sre_dashboard_name" {
+  value       = module.app.observability_sre_dashboard_name
+  description = "CloudWatch SRE dashboard name"
+}
+
+output "observability_sre_dashboard_url" {
+  value       = module.app.observability_sre_dashboard_url
+  description = "CloudWatch SRE dashboard URL"
+}
+
 output "observability_alarm_names" {
   value       = module.app.observability_alarm_names
   description = "CloudWatch alarm names"

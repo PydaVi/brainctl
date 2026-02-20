@@ -251,21 +251,6 @@ output "observability_sns_topic_arn" {
   description = "SNS topic ARN used for alerts"
 }
 
-output "observability_sns_topic_sev1_arn" {
-  value       = module.app.observability_sns_topic_sev1_arn
-  description = "SNS topic ARN used for Sev1 alerts"
-}
-
-output "observability_sns_topic_sev2_arn" {
-  value       = module.app.observability_sns_topic_sev2_arn
-  description = "SNS topic ARN used for Sev2 alerts"
-}
-
-output "observability_sns_topic_sev3_arn" {
-  value       = module.app.observability_sns_topic_sev3_arn
-  description = "SNS topic ARN used for Sev3 alerts"
-}
-
 output "observability_alert_email" {
   value       = module.app.observability_alert_email
   description = "Configured alert email"

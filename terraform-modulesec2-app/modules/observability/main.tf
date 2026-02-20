@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_dashboard" "app" {
-  count          = 0
+  count          = var.enable_observability && !var.enable_app_asg ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
@@ -105,7 +105,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           }
         }
       ],
-      [for w in [
+      var.enable_lb ? [
         {
           type   = "metric"
           x      = 0
@@ -172,13 +172,13 @@ resource "aws_cloudwatch_dashboard" "app" {
             ]
           }
         }
-      ] : w if var.enable_lb]
+      ] : []
     )
   })
 }
 
 resource "aws_cloudwatch_dashboard" "app_asg" {
-  count          = 0
+  count          = var.enable_observability && var.enable_app_asg ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
@@ -486,78 +486,9 @@ resource "aws_cloudwatch_dashboard" "db_rds" {
   })
 }
 
-locals {
-  alarm_actions_sev1 = length(var.alarm_actions_sev1) > 0 ? var.alarm_actions_sev1 : var.alarm_actions
-  alarm_actions_sev2 = length(var.alarm_actions_sev2) > 0 ? var.alarm_actions_sev2 : var.alarm_actions
-  alarm_actions_sev3 = length(var.alarm_actions_sev3) > 0 ? var.alarm_actions_sev3 : var.alarm_actions
-}
-
-resource "aws_cloudwatch_metric_alarm" "app_slo_availability_low" {
-  count               = var.enable_observability && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev1-app-slo-availability-low"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 3
-  threshold           = 99
-  alarm_description   = "[Sev1] SLO Availability abaixo do limiar"
-  alarm_actions       = local.alarm_actions_sev1
-  ok_actions          = local.alarm_actions_sev1
-  treat_missing_data  = "notBreaching"
-
-  metric_query {
-    id          = "availability"
-    expression  = "IF(req > 0, 100 * ((req - err4xx - err5xx) / req), 100)"
-    label       = "SLO Availability"
-    return_data = true
-  }
-
-  metric_query {
-    id = "req"
-    metric {
-      namespace   = "AWS/ApplicationELB"
-      metric_name = "RequestCount"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        LoadBalancer = var.alb_arn_suffix
-      }
-    }
-    return_data = false
-  }
-
-  metric_query {
-    id = "err4xx"
-    metric {
-      namespace   = "AWS/ApplicationELB"
-      metric_name = "HTTPCode_Target_4XX_Count"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.tg_arn_suffix
-      }
-    }
-    return_data = false
-  }
-
-  metric_query {
-    id = "err5xx"
-    metric {
-      namespace   = "AWS/ApplicationELB"
-      metric_name = "HTTPCode_Target_5XX_Count"
-      period      = 60
-      stat        = "Sum"
-      dimensions = {
-        LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.tg_arn_suffix
-      }
-    }
-    return_data = false
-  }
-}
-
 resource "aws_cloudwatch_metric_alarm" "app_cpu_high" {
   count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-app-cpu-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -566,8 +497,8 @@ resource "aws_cloudwatch_metric_alarm" "app_cpu_high" {
   statistic           = "Average"
   threshold           = var.cpu_high_threshold
   alarm_description   = "CPU alta na instância APP"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.app_instance_id
   }
@@ -575,7 +506,7 @@ resource "aws_cloudwatch_metric_alarm" "app_cpu_high" {
 
 resource "aws_cloudwatch_metric_alarm" "app_status_check_failed" {
   count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev1-app-status-check-failed"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-status-check-failed"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = 2
   metric_name         = "StatusCheckFailed"
@@ -584,8 +515,8 @@ resource "aws_cloudwatch_metric_alarm" "app_status_check_failed" {
   statistic           = "Maximum"
   threshold           = 1
   alarm_description   = "Falha de status check na APP"
-  alarm_actions       = local.alarm_actions_sev1
-  ok_actions          = local.alarm_actions_sev1
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.app_instance_id
   }
@@ -593,7 +524,7 @@ resource "aws_cloudwatch_metric_alarm" "app_status_check_failed" {
 
 resource "aws_cloudwatch_metric_alarm" "app_unreachable" {
   count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev1-app-unreachable"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-unreachable"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = 2
   metric_name         = "StatusCheckFailed_Instance"
@@ -602,8 +533,8 @@ resource "aws_cloudwatch_metric_alarm" "app_unreachable" {
   statistic           = "Maximum"
   threshold           = 1
   alarm_description   = "Instância APP inacessível"
-  alarm_actions       = local.alarm_actions_sev1
-  ok_actions          = local.alarm_actions_sev1
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.app_instance_id
   }
@@ -611,7 +542,7 @@ resource "aws_cloudwatch_metric_alarm" "app_unreachable" {
 
 resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
   count               = var.enable_observability && !var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-app-disk-low-free"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-disk-low-free"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "LogicalDisk % Free Space"
@@ -620,8 +551,8 @@ resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
   statistic           = "Average"
   threshold           = 15
   alarm_description   = "Disco com pouco espaço livre na APP"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.app_instance_id
     objectname = "LogicalDisk"
@@ -631,7 +562,7 @@ resource "aws_cloudwatch_metric_alarm" "app_disk_low_free" {
 
 resource "aws_cloudwatch_metric_alarm" "app_asg_cpu_high" {
   count               = var.enable_observability && var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-app-asg-cpu-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-asg-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "GroupAverageCPUUtilization"
@@ -640,8 +571,8 @@ resource "aws_cloudwatch_metric_alarm" "app_asg_cpu_high" {
   statistic           = "Average"
   threshold           = var.cpu_high_threshold
   alarm_description   = "CPU média alta no ASG da APP"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     AutoScalingGroupName = var.app_asg_name
   }
@@ -649,7 +580,7 @@ resource "aws_cloudwatch_metric_alarm" "app_asg_cpu_high" {
 
 resource "aws_cloudwatch_metric_alarm" "app_asg_inservice_low" {
   count               = var.enable_observability && var.enable_app_asg ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev1-app-asg-inservice-low"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-asg-inservice-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "GroupInServiceInstances"
@@ -658,8 +589,8 @@ resource "aws_cloudwatch_metric_alarm" "app_asg_inservice_low" {
   statistic           = "Average"
   threshold           = var.app_asg_min_size
   alarm_description   = "InServiceInstances abaixo do mínimo esperado no ASG da APP"
-  alarm_actions       = local.alarm_actions_sev1
-  ok_actions          = local.alarm_actions_sev1
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     AutoScalingGroupName = var.app_asg_name
   }
@@ -667,7 +598,7 @@ resource "aws_cloudwatch_metric_alarm" "app_asg_inservice_low" {
 
 resource "aws_cloudwatch_metric_alarm" "app_tg_unhealthy_hosts" {
   count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev1-app-tg-unhealthy-hosts"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-unhealthy-hosts"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "UnHealthyHostCount"
@@ -676,8 +607,8 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_unhealthy_hosts" {
   statistic           = "Maximum"
   threshold           = 0
   alarm_description   = "Target group da APP com hosts unhealthy"
-  alarm_actions       = local.alarm_actions_sev1
-  ok_actions          = local.alarm_actions_sev1
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = var.tg_arn_suffix
@@ -686,7 +617,7 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_unhealthy_hosts" {
 
 resource "aws_cloudwatch_metric_alarm" "app_tg_5xx_high" {
   count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev2-app-tg-5xx-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-5xx-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "HTTPCode_Target_5XX_Count"
@@ -695,8 +626,8 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_5xx_high" {
   statistic           = "Sum"
   threshold           = 5
   alarm_description   = "Target group da APP com aumento de erros 5XX"
-  alarm_actions       = local.alarm_actions_sev2
-  ok_actions          = local.alarm_actions_sev2
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = var.tg_arn_suffix
@@ -706,7 +637,7 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_5xx_high" {
 
 resource "aws_cloudwatch_metric_alarm" "app_alb_request_count_low" {
   count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-app-alb-request-count-low"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-alb-request-count-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 5
   metric_name         = "RequestCount"
@@ -716,8 +647,8 @@ resource "aws_cloudwatch_metric_alarm" "app_alb_request_count_low" {
   threshold           = 1
   alarm_description   = "ALB com baixo volume de tráfego para APP"
   treat_missing_data  = "breaching"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
   }
@@ -725,7 +656,7 @@ resource "aws_cloudwatch_metric_alarm" "app_alb_request_count_low" {
 
 resource "aws_cloudwatch_metric_alarm" "app_tg_target_response_time_high" {
   count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev2-app-tg-target-response-time-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-target-response-time-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   metric_name         = "TargetResponseTime"
@@ -735,8 +666,8 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_target_response_time_high" {
   threshold           = 2
   alarm_description   = "Target group da APP com latência elevada"
   treat_missing_data  = "notBreaching"
-  alarm_actions       = local.alarm_actions_sev2
-  ok_actions          = local.alarm_actions_sev2
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = var.tg_arn_suffix
@@ -745,7 +676,7 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_target_response_time_high" {
 
 resource "aws_cloudwatch_metric_alarm" "app_tg_4xx_high" {
   count               = var.enable_observability && var.enable_app_asg && var.enable_lb ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev2-app-tg-4xx-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-app-tg-4xx-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "HTTPCode_Target_4XX_Count"
@@ -755,8 +686,8 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_4xx_high" {
   threshold           = 20
   alarm_description   = "Target group da APP com aumento de erros 4XX"
   treat_missing_data  = "notBreaching"
-  alarm_actions       = local.alarm_actions_sev2
-  ok_actions          = local.alarm_actions_sev2
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = var.tg_arn_suffix
@@ -765,7 +696,7 @@ resource "aws_cloudwatch_metric_alarm" "app_tg_4xx_high" {
 
 resource "aws_cloudwatch_metric_alarm" "db_ec2_cpu_high" {
   count               = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-db-cpu-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -774,8 +705,8 @@ resource "aws_cloudwatch_metric_alarm" "db_ec2_cpu_high" {
   statistic           = "Average"
   threshold           = var.cpu_high_threshold
   alarm_description   = "CPU alta na instância DB (EC2)"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     InstanceId = var.db_instance_id
   }
@@ -783,7 +714,7 @@ resource "aws_cloudwatch_metric_alarm" "db_ec2_cpu_high" {
 
 resource "aws_cloudwatch_metric_alarm" "db_rds_cpu_high" {
   count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-db-rds-cpu-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -792,8 +723,8 @@ resource "aws_cloudwatch_metric_alarm" "db_rds_cpu_high" {
   statistic           = "Average"
   threshold           = var.cpu_high_threshold
   alarm_description   = "CPU alta na instância RDS"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     DBInstanceIdentifier = var.db_rds_identifier
   }
@@ -801,7 +732,7 @@ resource "aws_cloudwatch_metric_alarm" "db_rds_cpu_high" {
 
 resource "aws_cloudwatch_metric_alarm" "db_rds_free_storage_low" {
   count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev3-db-rds-free-storage-low"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-free-storage-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "FreeStorageSpace"
@@ -810,8 +741,8 @@ resource "aws_cloudwatch_metric_alarm" "db_rds_free_storage_low" {
   statistic           = "Minimum"
   threshold           = 2147483648
   alarm_description   = "Espaço livre baixo no RDS (< 2GB)"
-  alarm_actions       = local.alarm_actions_sev3
-  ok_actions          = local.alarm_actions_sev3
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     DBInstanceIdentifier = var.db_rds_identifier
   }
@@ -819,7 +750,7 @@ resource "aws_cloudwatch_metric_alarm" "db_rds_free_storage_low" {
 
 resource "aws_cloudwatch_metric_alarm" "db_rds_connections_high" {
   count               = var.enable_observability && var.enable_db && var.db_mode == "rds" ? 1 : 0
-  alarm_name          = "brainctl-${var.name}-${var.environment}-sev2-db-rds-connections-high"
+  alarm_name          = "brainctl-${var.name}-${var.environment}-db-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "DatabaseConnections"
@@ -828,8 +759,8 @@ resource "aws_cloudwatch_metric_alarm" "db_rds_connections_high" {
   statistic           = "Average"
   threshold           = 80
   alarm_description   = "Conexões altas no RDS"
-  alarm_actions       = local.alarm_actions_sev2
-  ok_actions          = local.alarm_actions_sev2
+  alarm_actions       = var.alarm_actions
+  ok_actions          = var.alarm_actions
   dimensions = {
     DBInstanceIdentifier = var.db_rds_identifier
   }

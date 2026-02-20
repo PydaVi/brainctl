@@ -65,9 +65,6 @@ locals {
 
   sns_enabled   = var.enable_observability && var.alert_email != ""
   alarm_actions = local.sns_enabled ? [aws_sns_topic.alerts[0].arn] : []
-  alarm_actions_sev1 = local.sns_enabled ? [aws_sns_topic.alerts_sev1[0].arn] : []
-  alarm_actions_sev2 = local.sns_enabled ? [aws_sns_topic.alerts_sev2[0].arn] : []
-  alarm_actions_sev3 = local.sns_enabled ? [aws_sns_topic.alerts_sev3[0].arn] : []
 
   ############################################
   # CLOUDWATCH CONFIG APP

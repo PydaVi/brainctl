@@ -62,63 +62,6 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.alert_email
 }
 
-resource "aws_sns_topic" "alerts_sev1" {
-  count = local.sns_enabled ? 1 : 0
-  name  = "${var.name}-${var.environment}-alerts-sev1"
-
-  tags = {
-    Name        = "${var.name}-${var.environment}-alerts-sev1"
-    Severity    = "sev1"
-    Environment = var.environment
-    ManagedBy   = "brainctl"
-  }
-}
-
-resource "aws_sns_topic" "alerts_sev2" {
-  count = local.sns_enabled ? 1 : 0
-  name  = "${var.name}-${var.environment}-alerts-sev2"
-
-  tags = {
-    Name        = "${var.name}-${var.environment}-alerts-sev2"
-    Severity    = "sev2"
-    Environment = var.environment
-    ManagedBy   = "brainctl"
-  }
-}
-
-resource "aws_sns_topic" "alerts_sev3" {
-  count = local.sns_enabled ? 1 : 0
-  name  = "${var.name}-${var.environment}-alerts-sev3"
-
-  tags = {
-    Name        = "${var.name}-${var.environment}-alerts-sev3"
-    Severity    = "sev3"
-    Environment = var.environment
-    ManagedBy   = "brainctl"
-  }
-}
-
-resource "aws_sns_topic_subscription" "email_sev1" {
-  count     = local.sns_enabled ? 1 : 0
-  topic_arn = aws_sns_topic.alerts_sev1[0].arn
-  protocol  = "email"
-  endpoint  = var.alert_email
-}
-
-resource "aws_sns_topic_subscription" "email_sev2" {
-  count     = local.sns_enabled ? 1 : 0
-  topic_arn = aws_sns_topic.alerts_sev2[0].arn
-  protocol  = "email"
-  endpoint  = var.alert_email
-}
-
-resource "aws_sns_topic_subscription" "email_sev3" {
-  count     = local.sns_enabled ? 1 : 0
-  topic_arn = aws_sns_topic.alerts_sev3[0].arn
-  protocol  = "email"
-  endpoint  = var.alert_email
-}
-
 resource "aws_security_group" "ssm_endpoints" {
   count       = var.enable_observability && var.enable_ssm_endpoints ? 1 : 0
   name        = "${var.name}-${var.environment}-ssm-endpoints-sg"

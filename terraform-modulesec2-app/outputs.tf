@@ -164,21 +164,6 @@ output "observability_sns_topic_arn" {
   value       = var.enable_observability && var.alert_email != "" ? aws_sns_topic.alerts[0].arn : null
 }
 
-output "observability_sns_topic_sev1_arn" {
-  description = "ARN do tópico SNS de alertas Sev1"
-  value       = var.enable_observability && var.alert_email != "" ? aws_sns_topic.alerts_sev1[0].arn : null
-}
-
-output "observability_sns_topic_sev2_arn" {
-  description = "ARN do tópico SNS de alertas Sev2"
-  value       = var.enable_observability && var.alert_email != "" ? aws_sns_topic.alerts_sev2[0].arn : null
-}
-
-output "observability_sns_topic_sev3_arn" {
-  description = "ARN do tópico SNS de alertas Sev3"
-  value       = var.enable_observability && var.alert_email != "" ? aws_sns_topic.alerts_sev3[0].arn : null
-}
-
 output "observability_alert_email" {
   description = "E-mail configurado para receber alertas"
   value       = var.enable_observability && var.alert_email != "" ? var.alert_email : null

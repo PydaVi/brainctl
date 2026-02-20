@@ -646,6 +646,68 @@ resource "aws_cloudwatch_dashboard" "infra" {
 
   dashboard_body = jsonencode({
     widgets = concat(
+      [
+        {
+          type   = "metric"
+          x      = 0
+          y      = 12
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra Saturation CPU"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupAverageCPUUtilization", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "CPUUtilization", "InstanceId", var.app_instance_id]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 12
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra Saturation Memory/Disk"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name]] : [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"], [var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra Dependencies: APP/ASG Health"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Maximum"
+            period  = 60
+            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name], ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra Dependencies: DB/Endpoints"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = var.enable_db ? (var.db_mode == "rds" ? [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_rds_identifier]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.db_instance_id]]) : [["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]]
+          }
+        }
+      ],
       var.enable_lb ? [
         {
           type   = "metric"
@@ -721,69 +783,7 @@ resource "aws_cloudwatch_dashboard" "infra" {
             ]
           }
         }
-      ] : [],
-      [
-        {
-          type   = "metric"
-          x      = 0
-          y      = 12
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Saturation CPU"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Average"
-            period  = 60
-            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupAverageCPUUtilization", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "CPUUtilization", "InstanceId", var.app_instance_id]]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 12
-          y      = 12
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Saturation Memory/Disk"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Average"
-            period  = 60
-            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name]] : [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"], [var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 0
-          y      = 18
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Dependencies: APP/ASG Health"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Maximum"
-            period  = 60
-            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name], ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 12
-          y      = 18
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Dependencies: DB/Endpoints"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Average"
-            period  = 60
-            metrics = var.enable_db ? (var.db_mode == "rds" ? [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_rds_identifier]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.db_instance_id]]) : [["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]]
-          }
-        }
-      ]
+      ] : []
     )
   })
 }

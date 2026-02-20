@@ -144,6 +144,26 @@ output "observability_db_dashboard_url" {
   value       = module.observability.db_dashboard_url
 }
 
+output "observability_sre_dashboard_name" {
+  description = "Nome do dashboard SRE"
+  value       = module.observability.sre_dashboard_name
+}
+
+output "observability_sre_dashboard_url" {
+  description = "URL do dashboard SRE"
+  value       = module.observability.sre_dashboard_url
+}
+
+output "observability_slo_dashboard_name" {
+  description = "Nome do dashboard SLO"
+  value       = module.observability.slo_dashboard_name
+}
+
+output "observability_slo_dashboard_url" {
+  description = "URL do dashboard SLO"
+  value       = module.observability.slo_dashboard_url
+}
+
 output "observability_alarm_names" {
   description = "Lista com nomes dos alarmes criados"
   value       = module.observability.alarm_names

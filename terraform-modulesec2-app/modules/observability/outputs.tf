@@ -10,8 +10,24 @@ output "db_dashboard_name" {
   value = var.enable_observability && var.enable_db ? (var.db_mode == "rds" ? aws_cloudwatch_dashboard.db_rds[0].dashboard_name : aws_cloudwatch_dashboard.db_ec2[0].dashboard_name) : null
 }
 
+output "sre_dashboard_name" {
+  value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.sre[0].dashboard_name : null
+}
+
+output "slo_dashboard_name" {
+  value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.slo[0].dashboard_name : null
+}
+
 output "db_dashboard_url" {
   value = var.enable_observability && var.enable_db ? (var.db_mode == "rds" ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db_rds[0].dashboard_name}" : "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.db_ec2[0].dashboard_name}") : null
+}
+
+output "sre_dashboard_url" {
+  value = var.enable_observability && var.enable_lb ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.sre[0].dashboard_name}" : null
+}
+
+output "slo_dashboard_url" {
+  value = var.enable_observability && var.enable_lb ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.slo[0].dashboard_name}" : null
 }
 
 output "alarm_names" {

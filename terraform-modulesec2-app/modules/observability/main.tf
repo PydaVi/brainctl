@@ -310,6 +310,148 @@ resource "aws_cloudwatch_dashboard" "app_asg" {
   })
 }
 
+resource "aws_cloudwatch_dashboard" "sre" {
+  count          = var.enable_observability && var.enable_lb ? 1 : 0
+  dashboard_name = "brainctl-${var.name}-${var.environment}-sre"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 6
+        properties = {
+          title   = "SRE Availability (%)"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "total_requests", visible = false }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "target_4xx", visible = false }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "target_5xx", visible = false }],
+            [{ expression = "IF(total_requests > 0, 100 * ((total_requests - target_4xx - target_5xx) / total_requests), 100)", label = "Availability", id = "availability" }]
+          ]
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_dashboard" "slo" {
+  count          = var.enable_observability && var.enable_lb ? 1 : 0
+  dashboard_name = "brainctl-${var.name}-${var.environment}-slo"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "SLO Availability"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_1m", visible = false, stat = "Sum", period = 60 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_1m", visible = false, stat = "Sum", period = 60 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_1m", visible = false, stat = "Sum", period = 60 }],
+            [{ expression = "IF(req_1m > 0, 100 * ((req_1m - err4xx_1m - err5xx_1m) / req_1m), 100)", label = "SLO Availability (1m)", id = "availability_1m" }],
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_5m", visible = false, stat = "Sum", period = 300 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_5m", visible = false, stat = "Sum", period = 300 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_5m", visible = false, stat = "Sum", period = 300 }],
+            [{ expression = "IF(req_5m > 0, 100 * ((req_5m - err4xx_5m - err5xx_5m) / req_5m), 100)", label = "SLO Availability (5m)", id = "availability_5m" }]
+          ]
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title   = "SLO Error Rate"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "Sum"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_er_1m", visible = false, stat = "Sum", period = 60 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_er_1m", visible = false, stat = "Sum", period = 60 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_er_1m", visible = false, stat = "Sum", period = 60 }],
+            [{ expression = "IF(req_er_1m > 0, 100 * ((err4xx_er_1m + err5xx_er_1m) / req_er_1m), 0)", label = "SLO Error Rate (1m)", id = "error_rate_1m" }],
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_er_5m", visible = false, stat = "Sum", period = 300 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_er_5m", visible = false, stat = "Sum", period = 300 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_er_5m", visible = false, stat = "Sum", period = 300 }],
+            [{ expression = "IF(req_er_5m > 0, 100 * ((err4xx_er_5m + err5xx_er_5m) / req_er_5m), 0)", label = "SLO Error Rate (5m)", id = "error_rate_5m" }]
+          ]
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "SLO Latency P95"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "p95"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P95 (1m)", stat = "p95", period = 60 }],
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P95 (5m)", stat = "p95", period = 300 }]
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "SLO Latency P99"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "p99"
+          period  = 60
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P99 (1m)", stat = "p99", period = 60 }],
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P99 (5m)", stat = "p99", period = 300 }]
+          ]
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_cloudwatch_dashboard" "db_ec2" {
   count          = var.enable_observability && var.enable_db && var.db_mode == "ec2" ? 1 : 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-db"

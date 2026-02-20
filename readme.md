@@ -207,12 +207,16 @@ Atualmente suportado:
 
 ## Execução da CLI
 
+> Para `brainctl cost`, tenha o binário `infracost` instalado e autenticado (`INFRACOST_API_KEY`).
+
 ```bash
 go run ./cmd/brainctl plan   --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
+# custo base com Infracost (EC2, EBS, RDS, ALB, NAT, EIP, VPC Endpoint, CloudWatch Logs + outros itens com preço no plan)
+go run ./cmd/brainctl cost   --stack-dir stacks/ec2-app/dev
 
 # blueprint k8s-workers (lab kubeadm)
 go run ./cmd/brainctl plan   --stack-dir stacks/k8s-workers/dev

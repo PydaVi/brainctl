@@ -821,6 +821,27 @@ resource "aws_cloudwatch_dashboard" "slo" {
             ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P99 (5m)", stat = "p99", period = 300 }]
           ]
         }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 24
+        height = 4
+        properties = {
+          title                = "SLO Availability (30d)"
+          view                 = "singleValue"
+          region               = var.region
+          stat                 = "Sum"
+          period               = 2592000
+          setPeriodToTimeRange = false
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_30d", visible = false, stat = "Sum", period = 2592000 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_30d", visible = false, stat = "Sum", period = 2592000 }],
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_30d", visible = false, stat = "Sum", period = 2592000 }],
+            [{ expression = "IF(req_30d > 0, 100 * ((req_30d - err4xx_30d - err5xx_30d) / req_30d), 100)", label = "Availability 30d (%)", id = "availability_30d" }]
+          ]
+        }
       }
     ]
   })

@@ -708,7 +708,7 @@ resource "aws_cloudwatch_dashboard" "infra" {
           }
         }
       ],
-      var.enable_lb ? [
+      [for w in [
         {
           type   = "metric"
           x      = 0
@@ -783,7 +783,7 @@ resource "aws_cloudwatch_dashboard" "infra" {
             ]
           }
         }
-      ] : []
+      ] : w if var.enable_lb]
     )
   })
 }

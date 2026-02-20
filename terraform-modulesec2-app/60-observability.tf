@@ -24,5 +24,8 @@ module "observability" {
   alb_arn_suffix = var.enable_lb ? aws_lb.app_alb[0].arn_suffix : null
   tg_arn_suffix  = var.enable_lb ? aws_lb_target_group.app_tg[0].arn_suffix : null
 
-  alarm_actions = local.alarm_actions
+  alarm_actions      = local.alarm_actions
+  alarm_actions_sev1 = local.alarm_actions_sev1
+  alarm_actions_sev2 = local.alarm_actions_sev2
+  alarm_actions_sev3 = local.alarm_actions_sev3
 }

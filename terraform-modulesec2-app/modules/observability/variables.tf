@@ -73,6 +73,21 @@ variable "alarm_actions" {
   default = []
 }
 
+variable "alarm_actions_sev1" {
+  type    = list(string)
+  default = []
+}
+
+variable "alarm_actions_sev2" {
+  type    = list(string)
+  default = []
+}
+
+variable "alarm_actions_sev3" {
+  type    = list(string)
+  default = []
+}
+
 variable "cw_agent_namespace" {
   type = string
 }

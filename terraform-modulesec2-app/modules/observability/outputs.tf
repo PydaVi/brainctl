@@ -32,6 +32,7 @@ output "slo_dashboard_url" {
 
 output "alarm_names" {
   value = var.enable_observability ? compact([
+    var.enable_lb ? aws_cloudwatch_metric_alarm.app_slo_availability_low[0].alarm_name : null,
     var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_cpu_high[0].alarm_name : aws_cloudwatch_metric_alarm.app_cpu_high[0].alarm_name,
     var.enable_app_asg ? aws_cloudwatch_metric_alarm.app_asg_inservice_low[0].alarm_name : aws_cloudwatch_metric_alarm.app_status_check_failed[0].alarm_name,
     var.enable_app_asg ? (var.enable_lb ? aws_cloudwatch_metric_alarm.app_tg_unhealthy_hosts[0].alarm_name : null) : aws_cloudwatch_metric_alarm.app_unreachable[0].alarm_name,

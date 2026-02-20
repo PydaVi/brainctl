@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_dashboard" "app" {
-  count          = var.enable_observability && !var.enable_app_asg ? 1 : 0
+  count          = 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
@@ -105,7 +105,7 @@ resource "aws_cloudwatch_dashboard" "app" {
           }
         }
       ],
-      var.enable_lb ? [
+      [for w in [
         {
           type   = "metric"
           x      = 0
@@ -172,13 +172,13 @@ resource "aws_cloudwatch_dashboard" "app" {
             ]
           }
         }
-      ] : []
+      ] : w if var.enable_lb]
     )
   })
 }
 
 resource "aws_cloudwatch_dashboard" "app_asg" {
-  count          = var.enable_observability && var.enable_app_asg ? 1 : 0
+  count          = 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-app"
 
   dashboard_body = jsonencode({
@@ -311,7 +311,7 @@ resource "aws_cloudwatch_dashboard" "app_asg" {
 }
 
 resource "aws_cloudwatch_dashboard" "sre" {
-  count          = var.enable_observability && var.enable_lb ? 1 : 0
+  count          = 0
   dashboard_name = "brainctl-${var.name}-${var.environment}-sre"
 
   dashboard_body = jsonencode({
@@ -510,7 +510,7 @@ resource "aws_cloudwatch_dashboard" "executive" {
         width  = 12
         height = 6
         properties = {
-          title   = "SLO Availability"
+          title   = "Executive Availability"
           view    = "timeSeries"
           region  = var.region
           stat    = "Sum"
@@ -519,8 +519,14 @@ resource "aws_cloudwatch_dashboard" "executive" {
             ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_exec", visible = false }],
             ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_exec", visible = false }],
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_exec", visible = false }],
-            [{ expression = "IF(req_exec > 0, 100 * ((req_exec - err4xx_exec - err5xx_exec) / req_exec), 100)", label = "SLO Availability" }]
+            [{ expression = "IF(req_exec > 0, 100 * ((req_exec - err4xx_exec - err5xx_exec) / req_exec), 100)", label = "Availability" }]
           ]
+          yAxis = {
+            left = {
+              min = 0
+              max = 100
+            }
+          }
         }
       },
       {
@@ -530,7 +536,7 @@ resource "aws_cloudwatch_dashboard" "executive" {
         width  = 12
         height = 6
         properties = {
-          title   = "SLO Error Rate"
+          title   = "Executive Error Rate"
           view    = "timeSeries"
           region  = var.region
           stat    = "Sum"
@@ -539,13 +545,28 @@ resource "aws_cloudwatch_dashboard" "executive" {
             ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_exec_er", visible = false }],
             ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_exec_er", visible = false }],
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_exec_er", visible = false }],
-            [{ expression = "IF(req_exec_er > 0, 100 * ((err4xx_exec_er + err5xx_exec_er) / req_exec_er), 0)", label = "SLO Error Rate" }]
+            [{ expression = "IF(req_exec_er > 0, 100 * ((err4xx_exec_er + err5xx_exec_er) / req_exec_er), 0)", label = "Error Rate" }]
           ]
         }
       },
       {
         type   = "metric"
         x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Executive Latency P95"
+          view    = "timeSeries"
+          region  = var.region
+          stat    = "p95"
+          period  = 60
+          metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "Latency P95", stat = "p95" }]]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
         y      = 6
         width  = 12
         height = 6
@@ -556,84 +577,6 @@ resource "aws_cloudwatch_dashboard" "executive" {
           stat    = "Sum"
           period  = 60
           metrics = [["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 6
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Executive Latency P95"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "p95"
-          period  = 60
-          metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "SLO Latency P95", stat = "p95" }]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 12
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Executive Saturation CPU"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupAverageCPUUtilization", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "CPUUtilization", "InstanceId", var.app_instance_id]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 12
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Executive Saturation Memory"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name]] : [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 18
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Executive Dependencies: TG Health"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Maximum"
-          period  = 60
-          metrics = [
-            ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix],
-            ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 18
-        width  = 12
-        height = 6
-        properties = {
-          title   = "Executive Dependencies: DB"
-          view    = "timeSeries"
-          region  = var.region
-          stat    = "Average"
-          period  = 60
-          metrics = var.enable_db ? (var.db_mode == "rds" ? [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_rds_identifier]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.db_instance_id]]) : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
         }
       }
     ]
@@ -650,11 +593,11 @@ resource "aws_cloudwatch_dashboard" "infra" {
         {
           type   = "metric"
           x      = 0
-          y      = 12
+          y      = 0
           width  = 12
           height = 6
           properties = {
-            title   = "Infra Saturation CPU"
+            title   = "Infra APP CPU"
             view    = "timeSeries"
             region  = var.region
             stat    = "Average"
@@ -665,88 +608,16 @@ resource "aws_cloudwatch_dashboard" "infra" {
         {
           type   = "metric"
           x      = 12
-          y      = 12
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Saturation Memory/Disk"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Average"
-            period  = 60
-            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name]] : [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"], [var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 0
-          y      = 18
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Dependencies: APP/ASG Health"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Maximum"
-            period  = 60
-            metrics = var.enable_app_asg ? [["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.app_asg_name], ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", var.app_asg_name]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 12
-          y      = 18
-          width  = 12
-          height = 6
-          properties = {
-            title   = "Infra Dependencies: DB/Endpoints"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Average"
-            period  = 60
-            metrics = var.enable_db ? (var.db_mode == "rds" ? [["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.db_rds_identifier]] : [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.db_instance_id]]) : [["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]]
-          }
-        }
-      ],
-      [for w in [
-        {
-          type   = "metric"
-          x      = 0
           y      = 0
           width  = 12
           height = 6
           properties = {
-            title   = "SLO Availability"
+            title   = "Infra APP Memory"
             view    = "timeSeries"
             region  = var.region
-            stat    = "Sum"
+            stat    = "Average"
             period  = 60
-            metrics = [
-              ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_infra", visible = false }],
-              ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_infra", visible = false }],
-              ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_infra", visible = false }],
-              [{ expression = "IF(req_infra > 0, 100 * ((req_infra - err4xx_infra - err5xx_infra) / req_infra), 100)", label = "SLO Availability" }]
-            ]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 12
-          y      = 0
-          width  = 12
-          height = 6
-          properties = {
-            title   = "SLO Error Rate"
-            view    = "timeSeries"
-            region  = var.region
-            stat    = "Sum"
-            period  = 60
-            metrics = [
-              ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix, { id = "req_infra_er", visible = false }],
-              ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err4xx_infra_er", visible = false }],
-              ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { id = "err5xx_infra_er", visible = false }],
-              [{ expression = "IF(req_infra_er > 0, 100 * ((err4xx_infra_er + err5xx_infra_er) / req_infra_er), 0)", label = "SLO Error Rate" }]
-            ]
+            metrics = [[var.cw_agent_namespace, "mem_used_percent", "InstanceId", var.app_instance_id, "objectname", "Memory"]]
           }
         },
         {
@@ -756,7 +627,72 @@ resource "aws_cloudwatch_dashboard" "infra" {
           width  = 12
           height = 6
           properties = {
-            title   = "Infra Traffic"
+            title   = "Infra APP Disk Free %"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "LogicalDisk % Free Space", "InstanceId", var.app_instance_id, "objectname", "LogicalDisk", "instance", "C:"]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 6
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra Network In/Out"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [
+              ["AWS/EC2", "NetworkIn", "InstanceId", var.app_instance_id],
+              ["AWS/EC2", "NetworkOut", "InstanceId", var.app_instance_id]
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 12
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra APP Status Check"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Maximum"
+            period  = 60
+            metrics = [["AWS/EC2", "StatusCheckFailed", "InstanceId", var.app_instance_id]]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 12
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra APP TCP Established"
+            view    = "timeSeries"
+            region  = var.region
+            stat    = "Average"
+            period  = 60
+            metrics = [[var.cw_agent_namespace, "tcp_connections_established", "InstanceId", var.app_instance_id, "objectname", "TCPv4"]]
+          }
+        }
+      ],
+      [for w in [
+        {
+          type   = "metric"
+          x      = 0
+          y      = 18
+          width  = 12
+          height = 6
+          properties = {
+            title   = "Infra ALB RequestCount"
             view    = "timeSeries"
             region  = var.region
             stat    = "Sum"
@@ -767,20 +703,16 @@ resource "aws_cloudwatch_dashboard" "infra" {
         {
           type   = "metric"
           x      = 12
-          y      = 6
+          y      = 18
           width  = 12
           height = 6
           properties = {
-            title   = "Infra Errors and Latency"
+            title   = "Infra TG TargetResponseTime"
             view    = "timeSeries"
             region  = var.region
-            stat    = "Sum"
+            stat    = "Average"
             period  = 60
-            metrics = [
-              ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix],
-              ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix],
-              ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix, { label = "TargetResponseTime", stat = "Average" }]
-            ]
+            metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.tg_arn_suffix]]
           }
         }
       ] : w if var.enable_lb]

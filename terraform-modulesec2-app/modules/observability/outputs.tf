@@ -1,9 +1,9 @@
 output "app_dashboard_name" {
-  value = var.enable_observability ? (var.enable_app_asg ? aws_cloudwatch_dashboard.app_asg[0].dashboard_name : aws_cloudwatch_dashboard.app[0].dashboard_name) : null
+  value = null
 }
 
 output "app_dashboard_url" {
-  value = var.enable_observability ? (var.enable_app_asg ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app_asg[0].dashboard_name}" : "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.app[0].dashboard_name}") : null
+  value = null
 }
 
 output "db_dashboard_name" {
@@ -11,7 +11,7 @@ output "db_dashboard_name" {
 }
 
 output "sre_dashboard_name" {
-  value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.sre[0].dashboard_name : null
+  value = null
 }
 
 output "executive_dashboard_name" {
@@ -31,7 +31,7 @@ output "db_dashboard_url" {
 }
 
 output "sre_dashboard_url" {
-  value = var.enable_observability && var.enable_lb ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.sre[0].dashboard_name}" : null
+  value = null
 }
 
 output "executive_dashboard_url" {

@@ -268,3 +268,43 @@ func TestValidate_InvalidWorkloadType(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestValidate_K8sGrafanaELBRequiresTwoSubnets(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "k8s-workers"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-k8s"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	v := true
+	cfg.K8s.EnableGrafanaELB = &v
+	cfg.K8s.GrafanaELBSubnetIDs = []string{"subnet-a"}
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "k8s.grafana_elb_subnet_ids must have at least 2 subnets when k8s.enable_grafana_elb=true" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestValidate_K8sGrafanaNodePortRange(t *testing.T) {
+	t.Parallel()
+
+	cfg := &AppConfig{}
+	cfg.Workload.Type = "k8s-workers"
+	cfg.Workload.Version = "v1"
+	cfg.App.Name = "brainctl-k8s"
+	cfg.App.Environment = "dev"
+	cfg.App.Region = "us-east-1"
+	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.SubnetID = "subnet-123"
+	cfg.K8s.GrafanaNodePort = 28000
+
+	err := cfg.Validate()
+	if err == nil || err.Error() != "k8s.grafana_node_port must be between 30000 and 32767" {
+		t.Fatalf("unexpected validate error: %v", err)
+	}
+}

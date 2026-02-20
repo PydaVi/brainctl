@@ -45,6 +45,7 @@ locals {
   create_nat_gateway               = var.enable_nat_gateway
   use_existing_private_route_table = trimspace(var.private_route_table_id) != ""
   nat_public_subnet_cidr           = trimspace(var.public_subnet_cidr) != "" ? var.public_subnet_cidr : "10.0.254.0/24"
+  grafana_elb_enabled              = var.enable_observability_stack && var.enable_grafana_elb
 }
 
 resource "aws_subnet" "nat_public" {
@@ -276,8 +277,11 @@ resource "aws_instance" "control_plane" {
   monitoring             = var.enable_detailed_monitoring
 
   user_data = templatefile("${path.module}/templates/control-plane.sh.tftpl", {
-    kubernetes_version = var.kubernetes_version
-    pod_cidr           = var.pod_cidr
+    kubernetes_version         = var.kubernetes_version
+    pod_cidr                   = var.pod_cidr
+    enable_observability_stack = var.enable_observability_stack
+    grafana_node_port          = var.grafana_node_port
+    grafana_admin_password     = var.grafana_admin_password
   })
 
   depends_on = [
@@ -322,4 +326,89 @@ resource "aws_instance" "workers" {
     Name = "${local.cluster_name}-worker-${count.index + 1}"
     Role = "worker"
   }
+}
+
+
+resource "aws_security_group" "grafana_elb" {
+  count       = local.grafana_elb_enabled ? 1 : 0
+  name        = "${local.cluster_name}-grafana-elb-sg"
+  description = "Security group do ELB do Grafana"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "grafana internet access"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.grafana_elb_allowed_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group_rule" "grafana_nodeport_from_elb" {
+  count                    = local.grafana_elb_enabled ? 1 : 0
+  type                     = "ingress"
+  from_port                = var.grafana_node_port
+  to_port                  = var.grafana_node_port
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.cluster.id
+  source_security_group_id = aws_security_group.grafana_elb[0].id
+  description              = "NodePort do Grafana vindo do ELB"
+}
+
+resource "aws_lb" "grafana" {
+  count              = local.grafana_elb_enabled ? 1 : 0
+  name               = substr(replace("${local.cluster_name}-grafana", "_", "-"), 0, 32)
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.grafana_elb[0].id]
+  subnets            = var.grafana_elb_subnet_ids
+}
+
+resource "aws_lb_target_group" "grafana" {
+  count       = local.grafana_elb_enabled ? 1 : 0
+  name        = substr(replace("${local.cluster_name}-grafana-tg", "_", "-"), 0, 32)
+  port        = var.grafana_node_port
+  protocol    = "HTTP"
+  target_type = "instance"
+  vpc_id      = var.vpc_id
+
+  health_check {
+    enabled             = true
+    path                = "/login"
+    protocol            = "HTTP"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    interval            = 30
+    timeout             = 5
+    matcher             = "200-399"
+  }
+}
+
+resource "aws_lb_listener" "grafana_http" {
+  count             = local.grafana_elb_enabled ? 1 : 0
+  load_balancer_arn = aws_lb.grafana[0].arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.grafana[0].arn
+  }
+}
+
+resource "aws_lb_target_group_attachment" "grafana_workers" {
+  count            = local.grafana_elb_enabled ? var.worker_count : 0
+  target_group_arn = aws_lb_target_group.grafana[0].arn
+  target_id        = aws_instance.workers[count.index].id
+  port             = var.grafana_node_port
+
+  depends_on = [aws_instance.workers]
 }

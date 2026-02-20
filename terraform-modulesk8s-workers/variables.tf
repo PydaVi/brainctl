@@ -102,3 +102,34 @@ variable "enable_ssm_vpc_endpoints" {
   type    = bool
   default = true
 }
+
+variable "enable_observability_stack" {
+  type    = bool
+  default = false
+}
+
+variable "enable_grafana_elb" {
+  type    = bool
+  default = false
+}
+
+variable "grafana_elb_subnet_ids" {
+  type    = list(string)
+  default = []
+}
+
+variable "grafana_elb_allowed_cidr" {
+  type    = string
+  default = "0.0.0.0/0"
+}
+
+variable "grafana_node_port" {
+  type    = number
+  default = 32000
+}
+
+variable "grafana_admin_password" {
+  type      = string
+  default   = "ChangeMe123!"
+  sensitive = true
+}

@@ -46,6 +46,32 @@ chown -R ubuntu:ubuntu /home/ubuntu/.kube
 
 sudo -u ubuntu kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 
+if [ "${enable_observability_stack}" = "true" ]; then
+  curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  sudo -u ubuntu kubectl create namespace monitoring --dry-run=client -o yaml | sudo -u ubuntu kubectl apply -f -
+  cat <<VALUES >/home/ubuntu/kube-prometheus-values.yaml
+grafana:
+  adminPassword: "${grafana_admin_password}"
+  service:
+    type: NodePort
+    nodePort: ${grafana_node_port}
+  defaultDashboardsEnabled: true
+prometheus:
+  service:
+    type: ClusterIP
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: true
+alertmanager:
+  enabled: true
+VALUES
+  chown ubuntu:ubuntu /home/ubuntu/kube-prometheus-values.yaml
+  sudo -u ubuntu helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  sudo -u ubuntu helm repo update
+  sudo -u ubuntu helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack     --namespace monitoring     --values /home/ubuntu/kube-prometheus-values.yaml
+fi
+
 mkdir -p /opt/k8s-bootstrap
 kubeadm token create --print-join-command > /opt/k8s-bootstrap/join.sh
 chmod +x /opt/k8s-bootstrap/join.sh

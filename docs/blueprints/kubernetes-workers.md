@@ -153,3 +153,19 @@ go run ./cmd/brainctl destroy --stack-dir stacks/k8s-workers/dev
 - sem integração EKS (control plane gerenciado).
 - fluxo de join simplificado para laboratório.
 - sem rotina de upgrade automatizado de versão Kubernetes.
+
+
+## 10. Observabilidade com Prometheus + Grafana
+
+O blueprint suporta instalação opcional do `kube-prometheus-stack` no namespace `monitoring`.
+
+Parâmetros:
+
+- `k8s.enable_observability_stack`: instala Prometheus, kube-state-metrics, node-exporter e Grafana.
+- `k8s.enable_grafana_elb`: cria ALB público para o Grafana.
+- `k8s.grafana_elb_subnet_ids`: subnets públicas do ALB (mínimo 2).
+- `k8s.grafana_elb_allowed_cidr`: CIDR permitido no listener HTTP 80.
+- `k8s.grafana_node_port`: NodePort do serviço do Grafana (30000-32767).
+- `k8s.grafana_admin_password`: senha inicial do admin do Grafana.
+
+Com isso, o cluster passa a monitorar métricas de cluster, nodes, pods, deployments, HPA e requests/limits através do stack padrão do Prometheus Operator.

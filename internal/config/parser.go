@@ -57,23 +57,29 @@ type WorkloadConfig struct {
 
 // K8sWorkersConfig define parâmetros do blueprint self-managed kubeadm em EC2.
 type K8sWorkersConfig struct {
-	ControlPlaneInstanceType string `yaml:"control_plane_instance_type"`
-	WorkerInstanceType       string `yaml:"worker_instance_type"`
-	ControlPlaneAMI          string `yaml:"control_plane_ami"`
-	WorkerAMI                string `yaml:"worker_ami"`
-	WorkerCount              int    `yaml:"worker_count"`
-	KubernetesVersion        string `yaml:"kubernetes_version"`
-	PodCIDR                  string `yaml:"pod_cidr"`
-	KeyName                  string `yaml:"key_name"`
-	AdminCIDR                string `yaml:"admin_cidr"`
-	EnableNatGateway         *bool  `yaml:"enable_nat_gateway"`
-	PublicSubnetID           string `yaml:"public_subnet_id"`
-	PublicSubnetCIDR         string `yaml:"public_subnet_cidr"`
-	InternetGatewayID        string `yaml:"internet_gateway_id"`
-	PrivateRouteTableID      string `yaml:"private_route_table_id"`
-	EnableSSM                *bool  `yaml:"enable_ssm"`
-	EnableSSMVPCEndpoints    *bool  `yaml:"enable_ssm_vpc_endpoints"`
-	EnableDetailedMonitoring *bool  `yaml:"enable_detailed_monitoring"`
+	ControlPlaneInstanceType string   `yaml:"control_plane_instance_type"`
+	WorkerInstanceType       string   `yaml:"worker_instance_type"`
+	ControlPlaneAMI          string   `yaml:"control_plane_ami"`
+	WorkerAMI                string   `yaml:"worker_ami"`
+	WorkerCount              int      `yaml:"worker_count"`
+	KubernetesVersion        string   `yaml:"kubernetes_version"`
+	PodCIDR                  string   `yaml:"pod_cidr"`
+	KeyName                  string   `yaml:"key_name"`
+	AdminCIDR                string   `yaml:"admin_cidr"`
+	EnableNatGateway         *bool    `yaml:"enable_nat_gateway"`
+	PublicSubnetID           string   `yaml:"public_subnet_id"`
+	PublicSubnetCIDR         string   `yaml:"public_subnet_cidr"`
+	InternetGatewayID        string   `yaml:"internet_gateway_id"`
+	PrivateRouteTableID      string   `yaml:"private_route_table_id"`
+	EnableSSM                *bool    `yaml:"enable_ssm"`
+	EnableSSMVPCEndpoints    *bool    `yaml:"enable_ssm_vpc_endpoints"`
+	EnableDetailedMonitoring *bool    `yaml:"enable_detailed_monitoring"`
+	EnableObservabilityStack *bool    `yaml:"enable_observability_stack"`
+	EnableGrafanaELB         *bool    `yaml:"enable_grafana_elb"`
+	GrafanaELBSubnetIDs      []string `yaml:"grafana_elb_subnet_ids"`
+	GrafanaELBAllowedCIDR    string   `yaml:"grafana_elb_allowed_cidr"`
+	GrafanaNodePort          int      `yaml:"grafana_node_port"`
+	GrafanaAdminPassword     string   `yaml:"grafana_admin_password"`
 }
 
 // DBConfig define o bloco opcional de banco.
@@ -378,6 +384,29 @@ func (c *AppConfig) Validate() error {
 		if c.K8s.EnableDetailedMonitoring == nil {
 			v := false
 			c.K8s.EnableDetailedMonitoring = &v
+		}
+		if c.K8s.EnableObservabilityStack == nil {
+			v := false
+			c.K8s.EnableObservabilityStack = &v
+		}
+		if c.K8s.EnableGrafanaELB == nil {
+			v := false
+			c.K8s.EnableGrafanaELB = &v
+		}
+		if c.K8s.GrafanaNodePort == 0 {
+			c.K8s.GrafanaNodePort = 32000
+		}
+		if c.K8s.GrafanaNodePort < 30000 || c.K8s.GrafanaNodePort > 32767 {
+			return fmt.Errorf("k8s.grafana_node_port must be between 30000 and 32767")
+		}
+		if c.K8s.GrafanaELBAllowedCIDR == "" {
+			c.K8s.GrafanaELBAllowedCIDR = "0.0.0.0/0"
+		}
+		if c.K8s.EnableGrafanaELB != nil && *c.K8s.EnableGrafanaELB && len(c.K8s.GrafanaELBSubnetIDs) < 2 {
+			return fmt.Errorf("k8s.grafana_elb_subnet_ids must have at least 2 subnets when k8s.enable_grafana_elb=true")
+		}
+		if c.K8s.EnableObservabilityStack != nil && *c.K8s.EnableObservabilityStack && strings.TrimSpace(c.K8s.GrafanaAdminPassword) == "" {
+			c.K8s.GrafanaAdminPassword = "ChangeMe123!"
 		}
 		return nil
 	}

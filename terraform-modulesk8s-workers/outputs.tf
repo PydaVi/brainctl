@@ -25,3 +25,7 @@ output "kubeconfig_retrieve_instructions" {
 output "validation_command" {
   value = "ssh -o StrictHostKeyChecking=no -i <key.pem> ubuntu@${aws_instance.control_plane.public_dns} 'kubectl get nodes -o wide'"
 }
+
+output "grafana_elb_dns" {
+  value = local.grafana_elb_enabled ? aws_lb.grafana[0].dns_name : ""
+}

@@ -51,9 +51,15 @@ module "k8s_workers" {
   public_subnet_cidr       = "{{ .K8s.PublicSubnetCIDR }}"
   internet_gateway_id      = "{{ .K8s.InternetGatewayID }}"
   private_route_table_id   = "{{ .K8s.PrivateRouteTableID }}"
-  enable_ssm               = {{ .EnableSSM }}
-  enable_ssm_vpc_endpoints = {{ .EnableSSMVPCEndpoints }}
+  enable_ssm                 = {{ .EnableSSM }}
+  enable_ssm_vpc_endpoints   = {{ .EnableSSMVPCEndpoints }}
   enable_detailed_monitoring = {{ .EnableDetailedMonitoring }}
+  enable_observability_stack = {{ .EnableObservabilityStack }}
+  enable_grafana_elb         = {{ .EnableGrafanaELB }}
+  grafana_elb_subnet_ids     = [{{- range $i, $s := .K8s.GrafanaELBSubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
+  grafana_elb_allowed_cidr   = "{{ .K8s.GrafanaELBAllowedCIDR }}"
+  grafana_node_port          = {{ .K8s.GrafanaNodePort }}
+  grafana_admin_password     = "{{ .K8s.GrafanaAdminPassword }}"
 }
 `
 
@@ -92,6 +98,11 @@ output "validation_command" {
   value       = module.k8s_workers.validation_command
   description = "Comando para validar o cluster"
 }
+
+output "grafana_elb_dns" {
+  value       = module.k8s_workers.grafana_elb_dns
+  description = "DNS público do ELB do Grafana"
+}
 `
 
 type renderData struct {
@@ -100,6 +111,8 @@ type renderData struct {
 	EnableSSM                bool
 	EnableSSMVPCEndpoints    bool
 	EnableDetailedMonitoring bool
+	EnableObservabilityStack bool
+	EnableGrafanaELB         bool
 	EndpointSubnetIDs        []string
 }
 
@@ -137,6 +150,8 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 		EnableSSM:                cfg.K8s.EnableSSM != nil && *cfg.K8s.EnableSSM,
 		EnableSSMVPCEndpoints:    cfg.K8s.EnableSSMVPCEndpoints != nil && *cfg.K8s.EnableSSMVPCEndpoints,
 		EnableDetailedMonitoring: cfg.K8s.EnableDetailedMonitoring != nil && *cfg.K8s.EnableDetailedMonitoring,
+		EnableObservabilityStack: cfg.K8s.EnableObservabilityStack != nil && *cfg.K8s.EnableObservabilityStack,
+		EnableGrafanaELB:         cfg.K8s.EnableGrafanaELB != nil && *cfg.K8s.EnableGrafanaELB,
 		EndpointSubnetIDs:        endpointSubnetIDs,
 	}
 

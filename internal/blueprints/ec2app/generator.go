@@ -244,6 +244,26 @@ output "observability_sre_dashboard_url" {
   description = "CloudWatch SRE dashboard URL"
 }
 
+output "observability_executive_dashboard_name" {
+  value       = module.app.observability_executive_dashboard_name
+  description = "CloudWatch Executive dashboard name"
+}
+
+output "observability_executive_dashboard_url" {
+  value       = module.app.observability_executive_dashboard_url
+  description = "CloudWatch Executive dashboard URL"
+}
+
+output "observability_infra_dashboard_name" {
+  value       = module.app.observability_infra_dashboard_name
+  description = "CloudWatch Infra dashboard name"
+}
+
+output "observability_infra_dashboard_url" {
+  value       = module.app.observability_infra_dashboard_url
+  description = "CloudWatch Infra dashboard URL"
+}
+
 output "observability_alarm_names" {
   value       = module.app.observability_alarm_names
   description = "CloudWatch alarm names"

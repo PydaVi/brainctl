@@ -14,6 +14,14 @@ output "sre_dashboard_name" {
   value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.sre[0].dashboard_name : null
 }
 
+output "executive_dashboard_name" {
+  value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.executive[0].dashboard_name : null
+}
+
+output "infra_dashboard_name" {
+  value = var.enable_observability ? aws_cloudwatch_dashboard.infra[0].dashboard_name : null
+}
+
 output "slo_dashboard_name" {
   value = var.enable_observability && var.enable_lb ? aws_cloudwatch_dashboard.slo[0].dashboard_name : null
 }
@@ -24,6 +32,14 @@ output "db_dashboard_url" {
 
 output "sre_dashboard_url" {
   value = var.enable_observability && var.enable_lb ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.sre[0].dashboard_name}" : null
+}
+
+output "executive_dashboard_url" {
+  value = var.enable_observability && var.enable_lb ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.executive[0].dashboard_name}" : null
+}
+
+output "infra_dashboard_url" {
+  value = var.enable_observability ? "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${aws_cloudwatch_dashboard.infra[0].dashboard_name}" : null
 }
 
 output "slo_dashboard_url" {

@@ -154,36 +154,6 @@ output "observability_sre_dashboard_url" {
   value       = module.observability.sre_dashboard_url
 }
 
-output "observability_executive_dashboard_name" {
-  description = "Nome do dashboard Executive"
-  value       = module.observability.executive_dashboard_name
-}
-
-output "observability_executive_dashboard_url" {
-  description = "URL do dashboard Executive"
-  value       = module.observability.executive_dashboard_url
-}
-
-output "observability_infra_dashboard_name" {
-  description = "Nome do dashboard Infra"
-  value       = module.observability.infra_dashboard_name
-}
-
-output "observability_infra_dashboard_url" {
-  description = "URL do dashboard Infra"
-  value       = module.observability.infra_dashboard_url
-}
-
-output "observability_slo_dashboard_name" {
-  description = "Nome do dashboard SLO"
-  value       = module.observability.slo_dashboard_name
-}
-
-output "observability_slo_dashboard_url" {
-  description = "URL do dashboard SLO"
-  value       = module.observability.slo_dashboard_url
-}
-
 output "observability_alarm_names" {
   description = "Lista com nomes dos alarmes criados"
   value       = module.observability.alarm_names

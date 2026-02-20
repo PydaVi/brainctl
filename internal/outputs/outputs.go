@@ -57,10 +57,7 @@ func PrintPrettyStatus(v map[string]any) {
 	appDash := asString(v["observability_app_dashboard_name"], "")
 	dbDash := asString(v["observability_db_dashboard_name"], "")
 	sreDash := asString(v["observability_sre_dashboard_name"], "")
-	sloDash := asString(v["observability_slo_dashboard_name"], "")
-	execDash := asString(v["observability_executive_dashboard_name"], "")
-	infraDash := asString(v["observability_infra_dashboard_name"], "")
-	if appDash != "" || dbDash != "" || sreDash != "" || sloDash != "" || execDash != "" || infraDash != "" {
+	if appDash != "" || dbDash != "" || sreDash != "" {
 		fmt.Println("  OBSERVABILITY")
 		if appDash != "" {
 			fmt.Printf("    app_dash   : %s\n", appDash)
@@ -73,18 +70,6 @@ func PrintPrettyStatus(v map[string]any) {
 		if sreDash != "" {
 			fmt.Printf("    sre_dash   : %s\n", sreDash)
 			fmt.Printf("    sre_url    : %s\n", asString(v["observability_sre_dashboard_url"], "(none)"))
-		}
-		if sloDash != "" {
-			fmt.Printf("    slo_dash   : %s\n", sloDash)
-			fmt.Printf("    slo_url    : %s\n", asString(v["observability_slo_dashboard_url"], "(none)"))
-		}
-		if execDash != "" {
-			fmt.Printf("    exec_dash  : %s\n", execDash)
-			fmt.Printf("    exec_url   : %s\n", asString(v["observability_executive_dashboard_url"], "(none)"))
-		}
-		if infraDash != "" {
-			fmt.Printf("    infra_dash : %s\n", infraDash)
-			fmt.Printf("    infra_url  : %s\n", asString(v["observability_infra_dashboard_url"], "(none)"))
 		}
 
 		snsTopic := asString(v["observability_sns_topic_arn"], "")

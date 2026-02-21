@@ -108,6 +108,7 @@ Inclui:
 Documentação técnica:
 - `docs/blueprints/ec2-app.md`
 - `docs/blueprints/kubernetes-workers.md`
+- `docs/cicd-v1.md`
 
 ---
 

@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  extract-pr-target:
+    name: Extract stack/alvo do PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      stack_dir: ${{ steps.extract.outputs.stack_dir }}
+      environment: ${{ steps.extract.outputs.environment }}
+    steps:
+      - name: Ler stack e ambiente do body do PR
+        id: extract
+        run: |
+          body='${{ github.event.pull_request.body }}'
+
+          stack_dir=$(printf '%s\n' "$body" | sed -n 's/.*stack_dir:[[:space:]]*`\{0,1\}\([^`[:space:]]\+\).*/\1/p' | head -n1)
+          environment=$(printf '%s\n' "$body" | sed -n 's/.*environment:[[:space:]]*`\{0,1\}\([^`[:space:]]\+\).*/\1/p' | head -n1)
+
+          if [ -z "$stack_dir" ] || [ -z "$environment" ]; then
+            echo "Preencha no PR: stack_dir e environment (veja pull_request_template.md)."
+            exit 1
+          fi
+
+          case "$environment" in
+            dev|staging|prod) ;;
+            *)
+              echo "environment inválido: $environment (use dev|staging|prod)"
+              exit 1
+              ;;
+          esac
+
+          case "$stack_dir" in
+            stacks/*) ;;
+            *)
+              echo "stack_dir inválido: $stack_dir (deve começar com stacks/)"
+              exit 1
+              ;;
+          esac
+
+          echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+
+  terraform-preview:
+    name: Terraform preview (plan + cost)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: extract-pr-target
+    environment: ${{ needs.extract-pr-target.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          test -n "$AWS_ROLE_TO_ASSUME" || (echo "Secret ausente: AWS_ROLE_TO_ASSUME" && exit 1)
+          test -n "$AWS_REGION" || (echo "Secret ausente: AWS_REGION" && exit 1)
+          test -n "$INFRACOST_API_KEY" || (echo "Secret ausente: INFRACOST_API_KEY" && exit 1)
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Run brainctl plan
+        run: |
+          mkdir -p artifacts
+          go run ./cmd/brainctl plan --stack-dir "${{ needs.extract-pr-target.outputs.stack_dir }}" | tee artifacts/plan-output.txt
+
+      - name: Run brainctl cost
+        run: |
+          go run ./cmd/brainctl cost --stack-dir "${{ needs.extract-pr-target.outputs.stack_dir }}" | tee artifacts/cost-output.txt
+
+      - name: Upload terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-preview-${{ github.event.pull_request.number }}
+          path: artifacts/
+
+  quality-pr:
+    name: Lint and Test (after terraform preview)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: terraform-preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Format check
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Arquivos não formatados:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+  quality-main:
+    name: Lint and Test (main)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Format check
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Arquivos não formatados:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...

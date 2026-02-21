@@ -1,0 +1,92 @@
+name: CD v1 (apply after merge)
+
+on:
+  pull_request:
+    types: [closed]
+    branches: ["main"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  extract-merge-target:
+    name: Extract stack/alvo do PR mergeado
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      stack_dir: ${{ steps.extract.outputs.stack_dir }}
+      environment: ${{ steps.extract.outputs.environment }}
+    steps:
+      - name: Ler stack e ambiente do body do PR
+        id: extract
+        run: |
+          body='${{ github.event.pull_request.body }}'
+
+          stack_dir=$(printf '%s\n' "$body" | sed -n 's/.*stack_dir:[[:space:]]*`\{0,1\}\([^`[:space:]]\+\).*/\1/p' | head -n1)
+          environment=$(printf '%s\n' "$body" | sed -n 's/.*environment:[[:space:]]*`\{0,1\}\([^`[:space:]]\+\).*/\1/p' | head -n1)
+
+          if [ -z "$stack_dir" ] || [ -z "$environment" ]; then
+            echo "PR sem stack_dir/environment no template."
+            exit 1
+          fi
+
+          case "$environment" in
+            dev|staging|prod) ;;
+            *)
+              echo "environment inválido: $environment"
+              exit 1
+              ;;
+          esac
+
+          case "$stack_dir" in
+            stacks/*) ;;
+            *)
+              echo "stack_dir inválido: $stack_dir"
+              exit 1
+              ;;
+          esac
+
+          echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+
+  apply:
+    name: brainctl apply
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    needs: extract-merge-target
+    environment: ${{ needs.extract-merge-target.outputs.environment }}
+    concurrency:
+      group: apply-${{ needs.extract-merge-target.outputs.environment }}-${{ needs.extract-merge-target.outputs.stack_dir }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Validate required secrets
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          test -n "$AWS_ROLE_TO_ASSUME" || (echo "Secret ausente: AWS_ROLE_TO_ASSUME" && exit 1)
+          test -n "$AWS_REGION" || (echo "Secret ausente: AWS_REGION" && exit 1)
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run brainctl apply
+        run: go run ./cmd/brainctl apply --stack-dir "${{ needs.extract-merge-target.outputs.stack_dir }}"

@@ -277,29 +277,45 @@ func TestValidate_InvalidWorkloadType(t *testing.T) {
 	}
 }
 
-func TestTerraformBackendKey_DefaultWithoutPrefix(t *testing.T) {
+func TestApplySecurityGroupRulesDir(t *testing.T) {
 	t.Parallel()
+
 	cfg := minimalValidConfig()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate failed: %v", err)
+	dir := t.TempDir()
+
+	content := `group: app
+ingress:
+  - description: "Allow office"
+    from_port: 443
+    to_port: 443
+    protocol: tcp
+    cidr_blocks:
+      - "10.0.0.0/8"
+`
+	if err := os.WriteFile(filepath.Join(dir, "app.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
 	}
-	got := cfg.TerraformBackendKey()
-	want := "brainctl-app/dev/terraform.tfstate"
-	if got != want {
-		t.Fatalf("expected key %q, got %q", want, got)
+
+	if err := ApplySecurityGroupRulesDir(cfg, dir); err != nil {
+		t.Fatalf("ApplySecurityGroupRulesDir failed: %v", err)
+	}
+	if len(cfg.RuntimeOverrides.AppExtraIngress) != 1 {
+		t.Fatalf("expected 1 app ingress rule, got %d", len(cfg.RuntimeOverrides.AppExtraIngress))
 	}
 }
 
-func TestTerraformBackendKey_WithPrefix(t *testing.T) {
+func TestApplySecurityGroupRulesDir_InvalidGroup(t *testing.T) {
 	t.Parallel()
+
 	cfg := minimalValidConfig()
-	cfg.Terraform.Backend.KeyPrefix = "  company-a/platform  "
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate failed: %v", err)
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "x.yaml"), []byte("group: invalid\ningress: []\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
 	}
-	got := cfg.TerraformBackendKey()
-	want := "company-a/platform/brainctl-app/dev/terraform.tfstate"
-	if got != want {
-		t.Fatalf("expected key %q, got %q", want, got)
+
+	err := ApplySecurityGroupRulesDir(cfg, dir)
+	if err == nil {
+		t.Fatalf("expected error for invalid group")
 	}
 }

@@ -11,9 +11,9 @@ import (
 )
 
 type RuntimeOptions struct {
-	File          string
-	StackDir      string
-	OverridesFile string
+	File              string
+	StackDir          string
+	SecurityGroupsDir string
 }
 
 type RuntimeConfig struct {
@@ -36,13 +36,13 @@ func LoadRuntimeConfig(opts RuntimeOptions) (*RuntimeConfig, error) {
 		return nil, err
 	}
 
-	if opts.OverridesFile != "" {
-		oPath := opts.OverridesFile
-		if !filepath.IsAbs(oPath) {
-			oPath = filepath.Join(opts.StackDir, opts.OverridesFile)
+	if opts.SecurityGroupsDir != "" {
+		sgDir := opts.SecurityGroupsDir
+		if !filepath.IsAbs(sgDir) {
+			sgDir = filepath.Join(opts.StackDir, opts.SecurityGroupsDir)
 		}
-		if _, statErr := os.Stat(oPath); statErr == nil {
-			if err := config.ApplyOverridesFile(cfg, oPath); err != nil {
+		if _, statErr := os.Stat(sgDir); statErr == nil {
+			if err := config.ApplySecurityGroupRulesDir(cfg, sgDir); err != nil {
 				return nil, err
 			}
 		} else if !errors.Is(statErr, os.ErrNotExist) {

@@ -47,7 +47,7 @@ type AppConfig struct {
 
 	K8s K8sWorkersConfig `yaml:"k8s"`
 
-	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
+	// RuntimeOverrides são alterações aplicadas por arquivos em security-groups/ (não fazem parte do contrato base).
 	RuntimeOverrides RuntimeOverrides `yaml:"-"`
 }
 
@@ -174,14 +174,9 @@ type IngressRule struct {
 	CIDRBlocks  []string `yaml:"cidr_blocks"`
 }
 
-type OverrideFile struct {
-	Overrides []OverrideOp `yaml:"overrides"`
-}
-
-type OverrideOp struct {
-	Op    string `yaml:"op"`
-	Path  string `yaml:"path"`
-	Value any    `yaml:"value"`
+type SecurityGroupRulesFile struct {
+	Group   string        `yaml:"group"`
+	Ingress []IngressRule `yaml:"ingress"`
 }
 
 // LoadConfig lê e desserializa o YAML informado pelo usuário.
@@ -199,68 +194,69 @@ func LoadConfig(path string) (*AppConfig, error) {
 	return &cfg, nil
 }
 
-// ApplyOverridesFile aplica customizações extras controladas por whitelist.
-func ApplyOverridesFile(cfg *AppConfig, path string) error {
-	data, err := os.ReadFile(path)
+// ApplySecurityGroupRulesDir carrega regras extras de SG a partir de um diretório.
+// Cada arquivo .yaml/.yml representa um SG (group: app|db|alb).
+func ApplySecurityGroupRulesDir(cfg *AppConfig, dir string) error {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
 
-	var f OverrideFile
-	if err := yaml.Unmarshal(data, &f); err != nil {
-		return fmt.Errorf("invalid overrides file: %w", err)
-	}
-
-	for i, o := range f.Overrides {
-		if err := applyOverride(cfg, o); err != nil {
-			return fmt.Errorf("override[%d] (%s %s): %w", i, o.Op, o.Path, err)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		if err := applySecurityGroupRulesFile(cfg, path); err != nil {
+			return fmt.Errorf("security group file %s: %w", e.Name(), err)
 		}
 	}
 	return nil
 }
 
-func applyOverride(cfg *AppConfig, o OverrideOp) error {
-	switch o.Path {
-	case "security_groups.app.ingress":
-		r, err := parseAppendIngressRule(o, "security_groups.app.ingress")
-		if err != nil {
-			return err
-		}
-		cfg.RuntimeOverrides.AppExtraIngress = append(cfg.RuntimeOverrides.AppExtraIngress, r)
-		return nil
-	case "security_groups.db.ingress":
-		r, err := parseAppendIngressRule(o, "security_groups.db.ingress")
-		if err != nil {
-			return err
-		}
-		cfg.RuntimeOverrides.DBExtraIngress = append(cfg.RuntimeOverrides.DBExtraIngress, r)
-		return nil
-	case "security_groups.alb.ingress":
-		r, err := parseAppendIngressRule(o, "security_groups.alb.ingress")
-		if err != nil {
-			return err
-		}
-		cfg.RuntimeOverrides.ALBExtraIngress = append(cfg.RuntimeOverrides.ALBExtraIngress, r)
-		return nil
-	default:
-		return fmt.Errorf("path not allowed")
+func applySecurityGroupRulesFile(cfg *AppConfig, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
 	}
+
+	var f SecurityGroupRulesFile
+	if err := yaml.Unmarshal(data, &f); err != nil {
+		return fmt.Errorf("invalid yaml: %w", err)
+	}
+
+	group := strings.ToLower(strings.TrimSpace(f.Group))
+	if group == "" {
+		return fmt.Errorf("group is required and must be one of: app, db, alb")
+	}
+	if group != "app" && group != "db" && group != "alb" {
+		return fmt.Errorf("group must be one of: app, db, alb")
+	}
+
+	for i, r := range f.Ingress {
+		rule, err := normalizeIngressRule(r)
+		if err != nil {
+			return fmt.Errorf("ingress[%d]: %w", i, err)
+		}
+		switch group {
+		case "app":
+			cfg.RuntimeOverrides.AppExtraIngress = append(cfg.RuntimeOverrides.AppExtraIngress, rule)
+		case "db":
+			cfg.RuntimeOverrides.DBExtraIngress = append(cfg.RuntimeOverrides.DBExtraIngress, rule)
+		case "alb":
+			cfg.RuntimeOverrides.ALBExtraIngress = append(cfg.RuntimeOverrides.ALBExtraIngress, rule)
+		}
+	}
+
+	return nil
 }
 
-func parseAppendIngressRule(o OverrideOp, path string) (IngressRule, error) {
-	if o.Op != "append" {
-		return IngressRule{}, fmt.Errorf("only 'append' is allowed for %s", path)
-	}
-	raw, err := yaml.Marshal(o.Value)
-	if err != nil {
-		return IngressRule{}, err
-	}
-
-	var r IngressRule
-	if err := yaml.Unmarshal(raw, &r); err != nil {
-		return IngressRule{}, fmt.Errorf("invalid ingress rule: %w", err)
-	}
-	if r.Protocol == "" {
+func normalizeIngressRule(r IngressRule) (IngressRule, error) {
+	if strings.TrimSpace(r.Protocol) == "" {
 		r.Protocol = "tcp"
 	}
 	if len(r.CIDRBlocks) == 0 {
@@ -354,7 +350,9 @@ func (c *AppConfig) Validate() error {
 	if c.Terraform.Backend.Bucket == "" {
 		return fmt.Errorf("terraform.backend.bucket is required")
 	}
-	c.Terraform.Backend.KeyPrefix = strings.TrimSpace(c.Terraform.Backend.KeyPrefix)
+	if c.Terraform.Backend.KeyPrefix == "" {
+		c.Terraform.Backend.KeyPrefix = c.App.Name
+	}
 	if c.Terraform.Backend.Region == "" {
 		c.Terraform.Backend.Region = c.App.Region
 	}

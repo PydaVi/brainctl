@@ -73,9 +73,9 @@ workload:
 terraform:
   backend:
     bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
     region: "us-east-1"
     use_lockfile: true
-    # key_prefix: opcional (ex.: "empresa-x/plataforma")
 
 app:
   name: brain-app
@@ -140,7 +140,7 @@ O mesmo padrão pode ser aplicado para bloco de banco quando houver user data es
 O backend remoto é definido no contrato via `terraform.backend`:
 
 - `bucket`: bucket S3 de state remoto.
-- `key_prefix` (opcional): prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
+- `key_prefix`: prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
 - `region`: região do bucket de state.
 - `use_lockfile`: habilita lock de state no backend S3.
 
@@ -148,7 +148,7 @@ O backend remoto é definido no contrato via `terraform.backend`:
 
 - Auto Scaling sem Load Balancer é bloqueado na validação.
 - Operações de recovery validam pré-requisitos de recursos dependentes.
-- Overrides são restritos a caminhos permitidos (whitelist) para evitar drift estrutural.
+- Regras extras de Security Group são lidas de arquivos em `security-groups/` por tipo de SG (`app`, `db`, `alb`).
 
 ## 6. Outputs esperados
 
@@ -174,5 +174,5 @@ go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 
 - contrato base: `stacks/ec2-app/dev/app.yaml`
 - contrato de produção: `stacks/ec2-app/prod/app.yaml`
-- overrides: `stacks/ec2-app/*/overrides.yaml`
+- regras de SG: `stacks/ec2-app/*/security-groups/*.yaml`
 - script de bootstrap exemplo: `stacks/ec2-app/*/scripts/app-user-data.ps1`

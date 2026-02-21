@@ -48,7 +48,7 @@ Isso significa:
 ## Ideia central
 
 ```text
-app.yaml (+ overrides)
+app.yaml (+ security-groups/*.yaml)
         ↓
 validação e guardrails
         ↓
@@ -175,9 +175,9 @@ workload:
 terraform:
   backend:
     bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
     region: "us-east-1"
     use_lockfile: true
-    # key_prefix: opcional (ex.: "empresa-x/plataforma")
 
 app:
   name: brain-test
@@ -203,14 +203,9 @@ A proposta é manter o contrato compreensível para times de aplicação, não a
 
 ---
 
-## Overrides controlados
+## Regras de Security Group por arquivos
 
-O brainctl permite customizações, mas dentro de uma whitelist para evitar drift e mudanças perigosas.
-
-Atualmente suportado:
-
-* regras extras de Security Group
-* ajustes específicos de acesso
+O brainctl permite customizações de rede através de arquivos YAML por SG em `security-groups/`, mantendo escopo controlado por tipo (`app`, `db`, `alb`).
 
 ---
 

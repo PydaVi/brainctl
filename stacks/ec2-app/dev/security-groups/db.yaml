@@ -1,0 +1,8 @@
+group: db
+ingress:
+  - description: "DB from BI VPN"
+    from_port: 1433
+    to_port: 1433
+    protocol: tcp
+    cidr_blocks:
+      - "10.100.0.0/16"

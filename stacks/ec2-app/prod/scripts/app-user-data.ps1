@@ -160,12 +160,12 @@ $pageHtml = @'
             <ul>
               <li><strong>Recovery:</strong> snapshots automáticos e runbooks para recuperação controlada.</li>
               <li><strong>DR Drill:</strong> agenda mensal com EventBridge Scheduler + SSM Automation.</li>
-              <li><strong>Governança:</strong> overrides por whitelist para customização segura.</li>
+              <li><strong>Governança:</strong> arquivos YAML por SG para customização segura.</li>
               <li><strong>Status operacional:</strong> outputs claros para times técnicos e de produto.</li>
             </ul>
           </div>
         </div>
-        <div class="flow">app.yaml (+overrides) → validação (Go) → geração Terraform → AWS pronta para operação</div>
+        <div class="flow">app.yaml (+security-groups/*.yaml) → validação (Go) → geração Terraform → AWS pronta para operação</div>
       </section>
 
       <p class="footer">

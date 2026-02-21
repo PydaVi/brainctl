@@ -12,7 +12,10 @@ func TestLoadConfigAndValidate_MinimalValidConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "app.yaml")
 
-	yaml := `app:
+	yaml := `terraform:
+  backend:
+    bucket: brainctl-test-state
+app:
   name: brainctl-app
   environment: dev
   region: us-east-1
@@ -56,6 +59,7 @@ func TestValidate_InvalidWorkloadVersion(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -76,6 +80,7 @@ func TestValidate_SSMEndpointsRequiresObservability(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -101,6 +106,7 @@ func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -126,6 +132,7 @@ func minimalValidConfig() *AppConfig {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -239,6 +246,7 @@ func TestValidate_K8sWorkersMinimal(t *testing.T) {
 	cfg.App.Name = "brainctl-k8s"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 
@@ -266,5 +274,48 @@ func TestValidate_InvalidWorkloadType(t *testing.T) {
 	err := cfg.Validate()
 	if err == nil || err.Error() != "workload.type must be one of: ec2-app, k8s-workers" {
 		t.Fatalf("unexpected validate error: %v", err)
+	}
+}
+
+func TestApplySecurityGroupRulesDir(t *testing.T) {
+	t.Parallel()
+
+	cfg := minimalValidConfig()
+	dir := t.TempDir()
+
+	content := `group: app
+ingress:
+  - description: "Allow office"
+    from_port: 443
+    to_port: 443
+    protocol: tcp
+    cidr_blocks:
+      - "10.0.0.0/8"
+`
+	if err := os.WriteFile(filepath.Join(dir, "app.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	if err := ApplySecurityGroupRulesDir(cfg, dir); err != nil {
+		t.Fatalf("ApplySecurityGroupRulesDir failed: %v", err)
+	}
+	if len(cfg.RuntimeOverrides.AppExtraIngress) != 1 {
+		t.Fatalf("expected 1 app ingress rule, got %d", len(cfg.RuntimeOverrides.AppExtraIngress))
+	}
+}
+
+func TestApplySecurityGroupRulesDir_InvalidGroup(t *testing.T) {
+	t.Parallel()
+
+	cfg := minimalValidConfig()
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "x.yaml"), []byte("group: invalid\ningress: []\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	err := ApplySecurityGroupRulesDir(cfg, dir)
+	if err == nil {
+		t.Fatalf("expected error for invalid group")
 	}
 }

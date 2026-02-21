@@ -7,6 +7,9 @@ import (
 )
 
 const testAppYAML = `
+terraform:
+  backend:
+    bucket: brainctl-test-state
 app:
   name: test
   environment: dev
@@ -28,16 +31,19 @@ recovery:
   enabled: false
 `
 
-func TestLoadRuntimeConfigWithRelativePaths(t *testing.T) {
+func TestLoadRuntimeConfigWithSecurityGroupsDir(t *testing.T) {
 	stackDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(stackDir, "app.yaml"), []byte(testAppYAML), 0o644); err != nil {
 		t.Fatalf("write app.yaml: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(stackDir, "overrides.yaml"), []byte("overrides: []\n"), 0o644); err != nil {
-		t.Fatalf("write overrides.yaml: %v", err)
+	if err := os.MkdirAll(filepath.Join(stackDir, "security-groups"), 0o755); err != nil {
+		t.Fatalf("mkdir security-groups: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(stackDir, "security-groups", "app.yaml"), []byte("group: app\ningress: []\n"), 0o644); err != nil {
+		t.Fatalf("write security-groups file: %v", err)
 	}
 
-	cfg, err := LoadRuntimeConfig(RuntimeOptions{File: "app.yaml", StackDir: stackDir, OverridesFile: "overrides.yaml"})
+	cfg, err := LoadRuntimeConfig(RuntimeOptions{File: "app.yaml", StackDir: stackDir, SecurityGroupsDir: "security-groups"})
 	if err != nil {
 		t.Fatalf("LoadRuntimeConfig failed: %v", err)
 	}
@@ -47,14 +53,14 @@ func TestLoadRuntimeConfigWithRelativePaths(t *testing.T) {
 	}
 }
 
-func TestLoadRuntimeConfigIgnoresMissingOverrides(t *testing.T) {
+func TestLoadRuntimeConfigIgnoresMissingSecurityGroupsDir(t *testing.T) {
 	stackDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(stackDir, "app.yaml"), []byte(testAppYAML), 0o644); err != nil {
 		t.Fatalf("write app.yaml: %v", err)
 	}
 
-	_, err := LoadRuntimeConfig(RuntimeOptions{File: "app.yaml", StackDir: stackDir, OverridesFile: "missing.yaml"})
+	_, err := LoadRuntimeConfig(RuntimeOptions{File: "app.yaml", StackDir: stackDir, SecurityGroupsDir: "missing-dir"})
 	if err != nil {
-		t.Fatalf("expected missing overrides to be ignored, got: %v", err)
+		t.Fatalf("expected missing security-groups dir to be ignored, got: %v", err)
 	}
 }

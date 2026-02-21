@@ -48,7 +48,7 @@ Isso significa:
 ## Ideia central
 
 ```text
-app.yaml (+ overrides)
+app.yaml (+ security-groups/*.yaml)
         ↓
 validação e guardrails
         ↓
@@ -172,6 +172,13 @@ workload:
   type: ec2-app
   version: v1
 
+terraform:
+  backend:
+    bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
+
 app:
   name: brain-test
   environment: dev
@@ -192,16 +199,13 @@ recovery:
 
 A proposta é manter o contrato compreensível para times de aplicação, não apenas para especialistas em Terraform.
 
+> O backend remoto do Terraform é configurado via contrato (`terraform.backend`) para evitar hardcode de bucket/região e permitir isolamento por empresa/conta/ambiente.
+
 ---
 
-## Overrides controlados
+## Regras de Security Group por arquivos
 
-O brainctl permite customizações, mas dentro de uma whitelist para evitar drift e mudanças perigosas.
-
-Atualmente suportado:
-
-* regras extras de Security Group
-* ajustes específicos de acesso
+O brainctl permite customizações de rede através de arquivos YAML por SG em `security-groups/`, mantendo escopo controlado por tipo (`app`, `db`, `alb`).
 
 ---
 
@@ -212,6 +216,8 @@ Atualmente suportado:
 ```bash
 go run ./cmd/brainctl plan   --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
+# se o plan detectar modify/replace em instância, o brainctl pede confirmação explícita
+# para CI/automação, bypass do guardrail: --force-instance-modify
 go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev

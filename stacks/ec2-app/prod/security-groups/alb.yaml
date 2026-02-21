@@ -1,0 +1,8 @@
+group: alb
+ingress:
+  - description: "ALB from corporate proxy"
+    from_port: 80
+    to_port: 80
+    protocol: tcp
+    cidr_blocks:
+      - "200.200.10.0/24"

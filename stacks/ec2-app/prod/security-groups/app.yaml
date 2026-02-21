@@ -1,0 +1,8 @@
+group: app
+ingress:
+  - description: "RDP Office"
+    from_port: 3389
+    to_port: 3389
+    protocol: tcp
+    cidr_blocks:
+      - "177.10.10.0/24"

@@ -15,11 +15,11 @@ const mainTF = `
 terraform {
   required_version = ">= 1.6.0"
   backend "s3" {
-    bucket       = "pydavi-terraform-state"
-    key          = "{{ .App.Name }}/{{ .App.Environment }}/terraform.tfstate"
-    region       = "us-east-1"
+    bucket       = "{{ .Terraform.Backend.Bucket }}"
+    key          = "{{ .BackendKey }}"
+    region       = "{{ .Terraform.Backend.Region }}"
     encrypt      = true
-    use_lockfile = true
+    use_lockfile = {{ .BackendUseLockfile }}
   }
 }
 
@@ -96,6 +96,8 @@ output "validation_command" {
 
 type renderData struct {
 	*config.AppConfig
+	BackendKey               string
+	BackendUseLockfile       bool
 	EnableNatGateway         bool
 	EnableSSM                bool
 	EnableSSMVPCEndpoints    bool
@@ -133,6 +135,8 @@ func Generate(wsDir string, cfg *config.AppConfig) error {
 
 	data := renderData{
 		AppConfig:                cfg,
+		BackendKey:               cfg.TerraformBackendKey(),
+		BackendUseLockfile:       cfg.Terraform.Backend.UseLockfile != nil && *cfg.Terraform.Backend.UseLockfile,
 		EnableNatGateway:         cfg.K8s.EnableNatGateway != nil && *cfg.K8s.EnableNatGateway,
 		EnableSSM:                cfg.K8s.EnableSSM != nil && *cfg.K8s.EnableSSM,
 		EnableSSMVPCEndpoints:    cfg.K8s.EnableSSMVPCEndpoints != nil && *cfg.K8s.EnableSSMVPCEndpoints,

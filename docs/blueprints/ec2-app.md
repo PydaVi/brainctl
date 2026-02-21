@@ -73,9 +73,9 @@ workload:
 terraform:
   backend:
     bucket: "seu-bucket-de-state"
-    key_prefix: "brainctl"
     region: "us-east-1"
     use_lockfile: true
+    # key_prefix: opcional (ex.: "empresa-x/plataforma")
 
 app:
   name: brain-app
@@ -140,7 +140,7 @@ O mesmo padrão pode ser aplicado para bloco de banco quando houver user data es
 O backend remoto é definido no contrato via `terraform.backend`:
 
 - `bucket`: bucket S3 de state remoto.
-- `key_prefix`: prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
+- `key_prefix` (opcional): prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
 - `region`: região do bucket de state.
 - `use_lockfile`: habilita lock de state no backend S3.
 

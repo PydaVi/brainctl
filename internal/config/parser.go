@@ -354,9 +354,7 @@ func (c *AppConfig) Validate() error {
 	if c.Terraform.Backend.Bucket == "" {
 		return fmt.Errorf("terraform.backend.bucket is required")
 	}
-	if c.Terraform.Backend.KeyPrefix == "" {
-		c.Terraform.Backend.KeyPrefix = c.App.Name
-	}
+	c.Terraform.Backend.KeyPrefix = strings.TrimSpace(c.Terraform.Backend.KeyPrefix)
 	if c.Terraform.Backend.Region == "" {
 		c.Terraform.Backend.Region = c.App.Region
 	}

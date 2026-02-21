@@ -81,9 +81,9 @@ workload:
 terraform:
   backend:
     bucket: "seu-bucket-de-state"
-    key_prefix: "brainctl"
     region: "us-east-1"
     use_lockfile: true
+    # key_prefix: opcional (ex.: "empresa-x/plataforma")
 
 app:
   name: brain-k8s-lab

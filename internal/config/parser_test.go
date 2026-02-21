@@ -276,3 +276,30 @@ func TestValidate_InvalidWorkloadType(t *testing.T) {
 		t.Fatalf("unexpected validate error: %v", err)
 	}
 }
+
+func TestTerraformBackendKey_DefaultWithoutPrefix(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	got := cfg.TerraformBackendKey()
+	want := "brainctl-app/dev/terraform.tfstate"
+	if got != want {
+		t.Fatalf("expected key %q, got %q", want, got)
+	}
+}
+
+func TestTerraformBackendKey_WithPrefix(t *testing.T) {
+	t.Parallel()
+	cfg := minimalValidConfig()
+	cfg.Terraform.Backend.KeyPrefix = "  company-a/platform  "
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate failed: %v", err)
+	}
+	got := cfg.TerraformBackendKey()
+	want := "company-a/platform/brainctl-app/dev/terraform.tfstate"
+	if got != want {
+		t.Fatalf("expected key %q, got %q", want, got)
+	}
+}

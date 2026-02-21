@@ -5,7 +5,6 @@ workload:
 terraform:
   backend:
     bucket: "brainctl-terraform-state"
-    key_prefix: "brainctl"
     region: "us-east-1"
     use_lockfile: true
 

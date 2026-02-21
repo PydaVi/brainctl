@@ -1,0 +1,117 @@
+name: Destroy dev environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack_dir:
+        description: "Stack alvo para destroy"
+        required: true
+        default: "stacks/ec2-app/dev"
+      confirm:
+        description: "Digite DESTROY para confirmar"
+        required: true
+        default: ""
+  schedule:
+    - cron: "0 * * * *" # checa a cada 1h
+
+permissions:
+  contents: read
+
+jobs:
+  destroy-dev:
+    name: brainctl destroy (dev)
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: destroy-dev-stacks-ec2-app-dev
+      cancel-in-progress: false
+    env:
+      DEFAULT_STACK_DIR: stacks/ec2-app/dev
+      AUTO_DESTROY_ENABLED: ${{ vars.AUTO_DESTROY_ENABLED }}
+      AUTO_DESTROY_AFTER_HOURS: ${{ vars.AUTO_DESTROY_AFTER_HOURS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          test -n "$AWS_ACCESS_KEY_ID" || (echo "Secret ausente: AWS_ACCESS_KEY_ID" && exit 1)
+          test -n "$AWS_SECRET_ACCESS_KEY" || (echo "Secret ausente: AWS_SECRET_ACCESS_KEY" && exit 1)
+          test -n "$AWS_REGION" || (echo "Secret ausente: AWS_REGION" && exit 1)
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Decide destroy mode
+        id: decide
+        shell: bash
+        run: |
+          should_destroy=false
+          stack_dir="$DEFAULT_STACK_DIR"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            stack_dir='${{ inputs.stack_dir }}'
+
+            if [ '${{ inputs.confirm }}' != 'DESTROY' ]; then
+              echo "Para execução manual, confirme com: DESTROY"
+              exit 1
+            fi
+
+            should_destroy=true
+            echo "Modo manual: destroy autorizado para $stack_dir"
+          else
+            # modo agendado
+            if [ "$AUTO_DESTROY_ENABLED" != "true" ]; then
+              echo "AUTO_DESTROY_ENABLED != true; não vai destruir."
+              echo "should_destroy=false" >> "$GITHUB_OUTPUT"
+              echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            ttl_hours="${AUTO_DESTROY_AFTER_HOURS:-8}"
+            if ! [[ "$ttl_hours" =~ ^[0-9]+$ ]]; then
+              echo "AUTO_DESTROY_AFTER_HOURS inválido: $ttl_hours"
+              exit 1
+            fi
+
+            last_commit_epoch=$(git log -1 --format=%ct)
+            now_epoch=$(date +%s)
+            idle_hours=$(( (now_epoch - last_commit_epoch) / 3600 ))
+
+            echo "Repo idle há ${idle_hours}h (threshold=${ttl_hours}h)."
+
+            if [ "$idle_hours" -ge "$ttl_hours" ]; then
+              should_destroy=true
+              echo "Threshold atingido: vai destruir $stack_dir"
+            else
+              echo "Ainda não atingiu threshold; não vai destruir."
+            fi
+          fi
+
+          echo "should_destroy=$should_destroy" >> "$GITHUB_OUTPUT"
+          echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Run brainctl destroy
+        if: steps.decide.outputs.should_destroy == 'true'
+        run: go run ./cmd/brainctl destroy --stack-dir "${{ steps.decide.outputs.stack_dir }}"
+
+      - name: Skip info
+        if: steps.decide.outputs.should_destroy != 'true'
+        run: echo "Destroy não executado neste run."

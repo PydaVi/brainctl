@@ -85,6 +85,7 @@ Regras:
 - `environment` deve ser: `dev`, `staging` ou `prod`.
 - `stack_dir` deve começar com `stacks/` e existir no repositório.
 - Não coloque apenas no título do PR, comentário ou commit — o workflow lê somente o **body** do PR.
+- Comentário no PR **não** dispara esse workflow; editar o **body** dispara (evento `pull_request.edited`) e um novo commit também dispara.
 
 Dica: se o PR já existe, clique em **Edit** no PR e corrija a descrição; ao salvar, rode novamente o job falho.
 

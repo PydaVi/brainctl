@@ -60,13 +60,14 @@ Dica: para `prod`, configure reviewers obrigatórios antes de executar apply aut
 ### 3) Secrets (repository ou environment)
 
 Configure:
-- `AWS_ROLE_TO_ASSUME`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION`
 - `INFRACOST_API_KEY`
 
 Observação:
 - `INFRACOST_API_KEY` é usado no PR para `brainctl cost`.
-- Para `apply`, os obrigatórios são `AWS_ROLE_TO_ASSUME` e `AWS_REGION`.
+- Para `apply`, os obrigatórios são `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_REGION`.
 
 ## Como abrir PR com stack/ambiente corretos
 

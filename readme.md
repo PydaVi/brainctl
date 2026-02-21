@@ -172,6 +172,13 @@ workload:
   type: ec2-app
   version: v1
 
+terraform:
+  backend:
+    bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
+
 app:
   name: brain-test
   environment: dev
@@ -191,6 +198,8 @@ recovery:
 ```
 
 A proposta é manter o contrato compreensível para times de aplicação, não apenas para especialistas em Terraform.
+
+> O backend remoto do Terraform é configurado via contrato (`terraform.backend`) para evitar hardcode de bucket/região e permitir isolamento por empresa/conta/ambiente.
 
 ---
 

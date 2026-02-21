@@ -78,6 +78,13 @@ workload:
   type: k8s-workers
   version: v1
 
+terraform:
+  backend:
+    bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
+
 app:
   name: brain-k8s-lab
   environment: dev

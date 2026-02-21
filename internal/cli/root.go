@@ -10,10 +10,6 @@ import (
 	"github.com/PydaVi/brainctl/internal/terraform"
 )
 
-const (
-	backendBucket = "pydavi-terraform-state"
-)
-
 type runtimeContext struct {
 	Config *RuntimeConfig
 	Runner *terraform.Runner
@@ -141,7 +137,7 @@ func optionsFromFlags(cmd *cobra.Command) RuntimeOptions {
 
 func statusRun(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 	cfg := ctx.Config.App
-	backendKey := fmt.Sprintf("%s/%s/terraform.tfstate", cfg.App.Name, cfg.App.Environment)
+	backendKey := cfg.TerraformBackendKey()
 
 	fmt.Println("== brainctl status ==")
 	fmt.Printf("App: %s (%s)\n", cfg.App.Name, cfg.App.Environment)
@@ -149,7 +145,8 @@ func statusRun(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 	fmt.Printf("Region: %s\n", cfg.App.Region)
 	fmt.Printf("Stack dir: %s\n", ctx.Config.Opts.StackDir)
 	fmt.Printf("Workspace: %s\n", ctx.WSDir)
-	fmt.Printf("Backend bucket: %s\n", backendBucket)
+	fmt.Printf("Backend bucket: %s\n", cfg.Terraform.Backend.Bucket)
+	fmt.Printf("Backend region: %s\n", cfg.Terraform.Backend.Region)
 	fmt.Printf("Backend key: %s\n", backendKey)
 	if cfg.AppScaling.Enabled {
 		fmt.Printf("App scaling: enabled (min=%d desired=%d max=%d cpu_target=%.1f)\n", cfg.AppScaling.MinSize, cfg.AppScaling.DesiredCapacity, cfg.AppScaling.MaxSize, cfg.AppScaling.CPUTarget)

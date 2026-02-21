@@ -18,11 +18,11 @@ const mainTF = `
 terraform {
   required_version = ">= 1.6.0"
   backend "s3" {
-    bucket       = "pydavi-terraform-state"
-    key          = "{{ .App.Name }}/{{ .App.Environment }}/terraform.tfstate"
-    region       = "us-east-1"
+    bucket       = "{{ .Terraform.Backend.Bucket }}"
+    key          = "{{ .BackendKey }}"
+    region       = "{{ .Terraform.Backend.Region }}"
     encrypt      = true
-    use_lockfile = true
+    use_lockfile = {{ .BackendUseLockfile }}
   }
 }
 
@@ -335,6 +335,8 @@ output "recovery_drill_schedule_name" {
 // renderData injeta dados auxiliares no template (ex.: bool defaultizado).
 type renderData struct {
 	*config.AppConfig
+	BackendKey             string
+	BackendUseLockfile     bool
 	ObservabilityEnabled   bool
 	RecoveryBackupApp      bool
 	RecoveryBackupDB       bool
@@ -374,6 +376,8 @@ func GenerateEC2App(wsDir string, cfg *config.AppConfig) error {
 
 	data := renderData{
 		AppConfig:              cfg,
+		BackendKey:             cfg.TerraformBackendKey(),
+		BackendUseLockfile:     cfg.Terraform.Backend.UseLockfile != nil && *cfg.Terraform.Backend.UseLockfile,
 		ObservabilityEnabled:   cfg.Observability.Enabled != nil && *cfg.Observability.Enabled,
 		RecoveryBackupApp:      cfg.Recovery.BackupApp != nil && *cfg.Recovery.BackupApp,
 		RecoveryBackupDB:       cfg.Recovery.BackupDB != nil && *cfg.Recovery.BackupDB,

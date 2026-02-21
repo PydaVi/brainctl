@@ -7,6 +7,9 @@ import (
 )
 
 const testAppYAML = `
+terraform:
+  backend:
+    bucket: brainctl-test-state
 app:
   name: test
   environment: dev

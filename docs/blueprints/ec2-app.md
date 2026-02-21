@@ -70,6 +70,13 @@ workload:
   type: ec2-app
   version: v1
 
+terraform:
+  backend:
+    bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
+
 app:
   name: brain-app
   environment: dev
@@ -127,6 +134,15 @@ Campos relevantes:
   - referência externa via `file://caminho/arquivo`.
 
 O mesmo padrão pode ser aplicado para bloco de banco quando houver user data específico para DB EC2.
+
+## 4.1 Backend Terraform
+
+O backend remoto é definido no contrato via `terraform.backend`:
+
+- `bucket`: bucket S3 de state remoto.
+- `key_prefix`: prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
+- `region`: região do bucket de state.
+- `use_lockfile`: habilita lock de state no backend S3.
 
 ## 5. Guardrails principais
 

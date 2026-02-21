@@ -12,7 +12,10 @@ func TestLoadConfigAndValidate_MinimalValidConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "app.yaml")
 
-	yaml := `app:
+	yaml := `terraform:
+  backend:
+    bucket: brainctl-test-state
+app:
   name: brainctl-app
   environment: dev
   region: us-east-1
@@ -56,6 +59,7 @@ func TestValidate_InvalidWorkloadVersion(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -76,6 +80,7 @@ func TestValidate_SSMEndpointsRequiresObservability(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -101,6 +106,7 @@ func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -126,6 +132,7 @@ func minimalValidConfig() *AppConfig {
 	cfg.App.Name = "brainctl-app"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
@@ -239,6 +246,7 @@ func TestValidate_K8sWorkersMinimal(t *testing.T) {
 	cfg.App.Name = "brainctl-k8s"
 	cfg.App.Environment = "dev"
 	cfg.App.Region = "us-east-1"
+	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 

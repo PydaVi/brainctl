@@ -16,6 +16,8 @@ import (
 type AppConfig struct {
 	Workload WorkloadConfig `yaml:"workload"`
 
+	Terraform TerraformConfig `yaml:"terraform"`
+
 	App struct {
 		Name        string `yaml:"name"`
 		Environment string `yaml:"environment"`
@@ -47,6 +49,17 @@ type AppConfig struct {
 
 	// RuntimeOverrides são alterações aplicadas por overrides.yaml (não fazem parte do contrato base).
 	RuntimeOverrides RuntimeOverrides `yaml:"-"`
+}
+
+type TerraformConfig struct {
+	Backend TerraformBackendConfig `yaml:"backend"`
+}
+
+type TerraformBackendConfig struct {
+	Bucket      string `yaml:"bucket"`
+	KeyPrefix   string `yaml:"key_prefix"`
+	Region      string `yaml:"region"`
+	UseLockfile *bool  `yaml:"use_lockfile"`
 }
 
 // WorkloadConfig identifica qual blueprint deve ser usado para gerar a stack.
@@ -336,6 +349,20 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.App.Region == "" {
 		return fmt.Errorf("app.region is required")
+	}
+
+	if c.Terraform.Backend.Bucket == "" {
+		return fmt.Errorf("terraform.backend.bucket is required")
+	}
+	if c.Terraform.Backend.KeyPrefix == "" {
+		c.Terraform.Backend.KeyPrefix = c.App.Name
+	}
+	if c.Terraform.Backend.Region == "" {
+		c.Terraform.Backend.Region = c.App.Region
+	}
+	if c.Terraform.Backend.UseLockfile == nil {
+		v := true
+		c.Terraform.Backend.UseLockfile = &v
 	}
 
 	if c.Infrastructure.VpcID == "" {
@@ -638,4 +665,13 @@ func (c *AppConfig) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *AppConfig) TerraformBackendKey() string {
+	prefix := strings.Trim(c.Terraform.Backend.KeyPrefix, "/")
+	base := fmt.Sprintf("%s/%s/terraform.tfstate", c.App.Name, c.App.Environment)
+	if prefix == "" {
+		return base
+	}
+	return fmt.Sprintf("%s/%s", prefix, base)
 }

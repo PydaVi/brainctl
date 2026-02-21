@@ -22,11 +22,10 @@ jobs:
     steps:
       - name: Ler stack e ambiente do body do PR
         id: extract
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          body=$(cat <<'EOF'
-${{ github.event.pull_request.body }}
-EOF
-)
+          body="$PR_BODY"
 
           stack_dir=$(printf '%s\n' "$body" | sed -nE 's/.*stack[ _-]?dir:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)
           environment=$(printf '%s\n' "$body" | sed -nE 's/.*environment:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)

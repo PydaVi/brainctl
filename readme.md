@@ -216,6 +216,8 @@ O brainctl permite customizações de rede através de arquivos YAML por SG em `
 ```bash
 go run ./cmd/brainctl plan   --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
+# se o plan detectar modify/replace em instância, o brainctl pede confirmação explícita
+# para CI/automação, bypass do guardrail: --force-instance-modify
 go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev

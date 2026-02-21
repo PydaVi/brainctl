@@ -35,14 +35,42 @@ func NewRootCommand() *cobra.Command {
 
 	applyCmd := &cobra.Command{
 		Use:   "apply",
-		Short: "Generate terraform and run terraform init/apply (auto-approve by default)",
+		Short: "Generate terraform and run terraform init/plan/apply (auto-approve by default)",
 		RunE: withRuntime(opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 			autoApprove, _ := cmd.Flags().GetBool("auto-approve")
-			return ctx.Runner.Apply(autoApprove)
+			forceInstanceModify, _ := cmd.Flags().GetBool("force-instance-modify")
+
+			planFile := "brainctl.apply.tfplan"
+			if err := ctx.Runner.PlanOut(planFile); err != nil {
+				return err
+			}
+
+			planJSON, err := ctx.Runner.ShowPlanJSON(planFile)
+			if err != nil {
+				return err
+			}
+
+			resources, err := detectModifiedInstances(planJSON)
+			if err != nil {
+				return fmt.Errorf("parse terraform plan json: %w", err)
+			}
+
+			if len(resources) > 0 && !forceInstanceModify {
+				ok, err := confirmInstanceModify(resources)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return fmt.Errorf("apply aborted by guardrail (instance modification not confirmed)")
+				}
+			}
+
+			return ctx.Runner.ApplyPlan(planFile, autoApprove)
 		}),
 	}
 	applyCommonFlags(applyCmd, &opts)
 	applyCmd.Flags().Bool("auto-approve", true, "Skip interactive approval (default: true)")
+	applyCmd.Flags().Bool("force-instance-modify", false, "Bypass guardrail confirmation when plan includes instance update/replace")
 
 	destroyCmd := &cobra.Command{
 		Use:   "destroy",

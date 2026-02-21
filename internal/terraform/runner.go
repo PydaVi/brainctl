@@ -29,6 +29,11 @@ func (r *Runner) Plan() error {
 	return r.run("plan", "-input=false", "-no-color")
 }
 
+// PlanOut executa plan e persiste o resultado em um arquivo para apply posterior.
+func (r *Runner) PlanOut(planFile string) error {
+	return r.run("plan", "-input=false", "-no-color", "-out", planFile)
+}
+
 // PlanDetailed roda plan com -detailed-exitcode.
 // Retorna hasChanges=true quando o terraform retornar exit code 2.
 func (r *Runner) PlanDetailed() (hasChanges bool, err error) {
@@ -117,4 +122,30 @@ func (r *Runner) run(args ...string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	return cmd.Run()
+}
+
+// ShowPlanJSON retorna o JSON detalhado de um arquivo de plano terraform.
+func (r *Runner) ShowPlanJSON(planFile string) ([]byte, error) {
+	cmd := exec.Command("terraform", "show", "-json", planFile)
+	cmd.Dir = r.Dir
+
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("terraform show failed: %w\n%s", err, errOut.String())
+	}
+	return out.Bytes(), nil
+}
+
+// ApplyPlan aplica um arquivo de plano salvo.
+func (r *Runner) ApplyPlan(planFile string, autoApprove bool) error {
+	args := []string{"apply", "-input=false", "-no-color"}
+	if autoApprove {
+		args = append(args, "-auto-approve")
+	}
+	args = append(args, planFile)
+	return r.run(args...)
 }

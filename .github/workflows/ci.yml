@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     types: [opened, synchronize, reopened, edited, ready_for_review]
   push:
-    branches: ["main"]
+    branches: ["feat/**"]
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   extract-pr-target:
     name: Extract stack/alvo do PR
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feat/')
     runs-on: ubuntu-latest
     outputs:
       stack_dir: ${{ steps.extract.outputs.stack_dir }}
@@ -59,7 +59,7 @@ jobs:
 
   terraform-preview:
     name: Terraform preview (plan + cost)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feat/')
     runs-on: ubuntu-latest
     needs: extract-pr-target
     environment: ${{ needs.extract-pr-target.outputs.environment }}
@@ -117,7 +117,7 @@ jobs:
 
   quality-pr:
     name: Lint and Test (after terraform preview)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feat/')
     runs-on: ubuntu-latest
     needs: terraform-preview
     steps:
@@ -145,8 +145,8 @@ jobs:
       - name: Test
         run: go test ./...
 
-  quality-main:
-    name: Lint and Test (main)
+  quality-push:
+    name: Lint and Test (feat push)
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

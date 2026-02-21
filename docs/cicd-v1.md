@@ -9,7 +9,7 @@ Este guia implementa uma versão inicial para você entender o fluxo completo:
 ## O que foi criado
 
 - `/.github/workflows/ci.yml`
-  - Em Pull Request para `main`:
+  - Em Pull Request para `main` com branch de origem `feat/*`:
     1. lê `stack_dir` e `environment` do body do PR
     2. roda:
        - `go run ./cmd/brainctl plan --stack-dir <stack_dir>`
@@ -19,7 +19,7 @@ Este guia implementa uma versão inicial para você entender o fluxo completo:
        - `gofmt` check
        - `go vet ./...`
        - `go test ./...`
-  - Em push na `main`: roda os checks Go (`gofmt`, `go vet`, `go test`)
+  - Em push em branches `feat/*`: roda os checks Go (`gofmt`, `go vet`, `go test`)
 
 - `/.github/workflows/cd-v1.yml`
   - Quando PR para `main` é mergeado:
@@ -86,6 +86,7 @@ Regras:
 - `stack_dir` deve começar com `stacks/` e existir no repositório.
 - Não coloque apenas no título do PR, comentário ou commit — o workflow lê somente o **body** do PR.
 - Comentário no PR **não** dispara esse workflow; editar o **body** dispara (evento `pull_request.edited`) e um novo commit também dispara.
+- O CI de PR só roda se a branch de origem começar com `feat/`.
 
 Dica: se o PR já existe, clique em **Edit** no PR e corrija a descrição; ao salvar, rode novamente o job falho.
 
@@ -121,7 +122,7 @@ go vet ./...
 go test ./...
 ```
 
-4. Commit e push:
+4. Commit e push (em branch `feat/...`):
 
 ```bash
 git add .

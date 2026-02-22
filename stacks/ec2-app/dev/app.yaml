@@ -10,7 +10,7 @@ terraform:
     use_lockfile: true
 
 app:
-  name: i4pro
+  name: brain-teste-2
   environment: dev
   region: us-east-1
 

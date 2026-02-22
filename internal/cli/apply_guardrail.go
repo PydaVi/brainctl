@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const guardrailApprovalEnv = "BRAINCTL_INSTANCE_MODIFY_APPROVED"
+
 type tfPlan struct {
 	ResourceChanges []tfPlanResourceChange `json:"resource_changes"`
 }
@@ -55,11 +57,21 @@ func isReplaceAction(actions []string) bool {
 }
 
 func confirmInstanceModify(resources []string) (bool, error) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(guardrailApprovalEnv)), "SIM") {
+		fmt.Printf("[guardrail] Aprovação automática recebida via variável de ambiente %s=SIM.\n", guardrailApprovalEnv)
+		return true, nil
+	}
+
 	fmt.Println("\n[guardrail] Foram detectadas alterações em instâncias:")
 	for _, r := range resources {
 		fmt.Printf("  - %s\n", r)
 	}
 	fmt.Println("[guardrail] Essas mudanças podem causar reinício/substituição de instância.")
+
+	if !isInteractiveInput() {
+		return false, fmt.Errorf("guardrail requer confirmação manual, mas stdin não é interativo; execute com --force-instance-modify ou defina %s=SIM", guardrailApprovalEnv)
+	}
+
 	fmt.Print("[guardrail] Digite 'SIM' para continuar: ")
 
 	reader := bufio.NewReader(os.Stdin)
@@ -68,4 +80,12 @@ func confirmInstanceModify(resources []string) (bool, error) {
 		return false, err
 	}
 	return strings.EqualFold(strings.TrimSpace(line), "SIM"), nil
+}
+
+func isInteractiveInput() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
 }

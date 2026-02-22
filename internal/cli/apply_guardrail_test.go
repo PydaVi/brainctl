@@ -34,3 +34,15 @@ func TestDetectModifiedInstances_NoInstanceChanges(t *testing.T) {
 		t.Fatalf("expected 0 resources, got %d", len(got))
 	}
 }
+
+func TestConfirmInstanceModify_AutoApprovedByEnv(t *testing.T) {
+	t.Setenv(guardrailApprovalEnv, "SIM")
+
+	ok, err := confirmInstanceModify([]string{"aws_instance.app[0]"})
+	if err != nil {
+		t.Fatalf("confirmInstanceModify returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected automatic approval to return true")
+	}
+}

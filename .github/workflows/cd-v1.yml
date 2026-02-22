@@ -4,6 +4,22 @@ on:
   pull_request:
     types: [closed]
     branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      stack_dir:
+        description: "Stack directory (ex: stacks/ec2-app/dev)"
+        required: true
+        type: string
+      environment:
+        description: "Environment target"
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      approve_instance_modify:
+        description: "Confirma guardrail de alteração em instâncias"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -11,7 +27,7 @@ permissions:
 jobs:
   extract-merge-target:
     name: Extract stack/alvo do PR mergeado
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       stack_dir: ${{ steps.extract.outputs.stack_dir }}
@@ -54,18 +70,31 @@ jobs:
 
   apply:
     name: brainctl apply
-    if: github.event.pull_request.merged == true
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    needs: extract-merge-target
-    environment: ${{ needs.extract-merge-target.outputs.environment }}
+    needs: [extract-merge-target]
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || needs.extract-merge-target.outputs.environment }}
     concurrency:
-      group: apply-${{ needs.extract-merge-target.outputs.environment }}-${{ needs.extract-merge-target.outputs.stack_dir }}
+      group: apply-${{ github.event_name == 'workflow_dispatch' && inputs.environment || needs.extract-merge-target.outputs.environment }}-${{ github.event_name == 'workflow_dispatch' && inputs.stack_dir || needs.extract-merge-target.outputs.stack_dir }}
       cancel-in-progress: false
     steps:
+      - name: Validate workflow_dispatch inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          case "${{ inputs.stack_dir }}" in
+            stacks/*) ;;
+            *)
+              echo "stack_dir inválido: ${{ inputs.stack_dir }}"
+              exit 1
+              ;;
+          esac
+
       - name: Checkout merge commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Validate required secrets
         env:
@@ -94,4 +123,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Run brainctl apply
-        run: go run ./cmd/brainctl apply --stack-dir "${{ needs.extract-merge-target.outputs.stack_dir }}"
+        env:
+          STACK_DIR: ${{ github.event_name == 'workflow_dispatch' && inputs.stack_dir || needs.extract-merge-target.outputs.stack_dir }}
+          BRAINCTL_INSTANCE_MODIFY_APPROVED: ${{ github.event_name == 'workflow_dispatch' && inputs.approve_instance_modify && 'SIM' || '' }}
+        run: go run ./cmd/brainctl apply --stack-dir "$STACK_DIR"

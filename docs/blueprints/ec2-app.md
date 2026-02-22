@@ -1,69 +1,96 @@
 # Blueprint `ec2-app`
 
-## 1. Escopo
+## English
 
-O blueprint `ec2-app` provisiona uma aplicação em EC2 com componentes opcionais de balanceamento, auto scaling, observabilidade e recuperação.
+### 1. Scope
 
-A geração é orientada por contrato (`app.yaml`) e produz um workspace Terraform com módulos versionados do repositório.
+`ec2-app` provisions an EC2-based application environment with optional database, load balancing, autoscaling, observability, and recovery resources.
 
-## 2. Componentes provisionáveis
+### 2. Main topology
 
-### 2.1 Fundação
+- App EC2 instance (or ASG when autoscaling is enabled)
+- Optional DB EC2 instance
+- Security groups (`app`, `db`, `alb`)
+- Optional Application Load Balancer
+- Optional CloudWatch dashboards/alarms + SNS notifications
+- Optional recovery resources (snapshot policies, SSM automation, DR drill)
 
-- VPC e subnets são referenciadas por ID no contrato (não criadas pelo blueprint).
-- Security Groups para aplicação, banco e ALB (quando habilitado).
+### 3. Contract (`app.yaml`) example
 
-### 2.2 Camada de aplicação
+```yaml
+workload:
+  type: ec2-app
+  version: v1
 
-- EC2 de aplicação (single instance) ou Auto Scaling Group (quando `app_scaling.enabled: true`).
-- IAM Instance Profile para operação com SSM/observabilidade.
-- bootstrap por `user_data` (inline ou `file://`, conforme modo configurado).
+terraform:
+  backend:
+    bucket: "your-state-bucket"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
 
-### 2.3 Camada de banco (opcional)
+app:
+  name: brain-test
+  environment: dev
+  region: us-east-1
 
-`db.enabled: true` habilita banco em um dos modos:
+ec2:
+  instance_type: t3.micro
 
-- instância EC2 para banco (modo self-managed), ou
-- RDS (`db.mode: rds`) com parâmetros de engine/classe/storage.
+lb:
+  enabled: true
 
-### 2.4 Balanceamento (opcional)
+autoscaling:
+  enabled: false
 
-`lb.enabled: true` habilita:
+observability:
+  enabled: true
 
-- Application Load Balancer.
-- listener e target group.
-- regras de acesso por CIDR configurável.
+recovery:
+  enabled: true
+```
 
-### 2.5 Auto scaling (opcional)
+### 4. Guardrails
 
-`app_scaling.enabled: true` habilita:
+- Autoscaling without load balancer is blocked.
+- Recovery options validate required dependencies.
+- SG custom rules are limited by SG type (`app`, `db`, `alb`).
 
-- Launch Template.
-- Auto Scaling Group.
-- política de scaling por alvo de CPU.
+### 5. CLI operations
 
-Guardrail aplicado: Auto Scaling exige Load Balancer habilitado.
+```bash
+go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl apply --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
+```
 
-### 2.6 Observabilidade (opcional)
+### 6. Reference paths
 
-`observability.enabled: true` habilita:
+- `stacks/ec2-app/dev/app.yaml`
+- `stacks/ec2-app/prod/app.yaml`
+- `stacks/ec2-app/*/security-groups/*.yaml`
+- `stacks/ec2-app/*/scripts/app-user-data.ps1`
 
-- dashboards CloudWatch.
-- alarmes e notificações SNS.
-- integração operacional com SSM.
-- endpoints privados para serviços de observabilidade/SSM conforme configuração.
+---
 
-### 2.7 Recovery (opcional)
+## Português
 
-`recovery.enabled: true` habilita:
+### 1. Escopo
 
-- snapshots agendados.
-- runbooks de recuperação.
-- parâmetros para DR drill e retenção de backups.
+`ec2-app` provisiona um ambiente de aplicação em EC2 com banco opcional, balanceamento de carga, autoscaling, observabilidade e recursos de recovery opcionais.
 
-## 3. Contrato de configuração (`app.yaml`)
+### 2. Topologia principal
 
-Exemplo técnico mínimo com recursos opcionais habilitados:
+- Instância EC2 de aplicação (ou ASG quando autoscaling estiver habilitado)
+- Instância EC2 de banco opcional
+- Security groups (`app`, `db`, `alb`)
+- Application Load Balancer opcional
+- Dashboards/alarmes CloudWatch + notificações SNS opcionais
+- Recursos de recovery opcionais (snapshots, automações SSM, DR drill)
+
+### 3. Exemplo de contrato (`app.yaml`)
 
 ```yaml
 workload:
@@ -78,89 +105,33 @@ terraform:
     use_lockfile: true
 
 app:
-  name: brain-app
+  name: brain-test
   environment: dev
   region: us-east-1
 
-infrastructure:
-  vpc_id: vpc-xxxxxxxx
-  subnet_id: subnet-xxxxxxxx
-
 ec2:
   instance_type: t3.micro
-  os: windows
-  ami: ""
-  user_data_mode: merge
-  user_data: file://scripts/app-user-data.ps1
 
 lb:
   enabled: true
-  scheme: internet-facing
-  subnet_ids: ["subnet-a", "subnet-b"]
-  listener_port: 80
-  target_port: 8080
-  allowed_cidr: 0.0.0.0/0
 
-app_scaling:
-  enabled: true
-  subnet_ids: ["subnet-a", "subnet-b"]
-  min_size: 1
-  max_size: 3
-  desired_capacity: 1
-  cpu_target: 60
+autoscaling:
+  enabled: false
 
 observability:
   enabled: true
-  cpu_high_threshold: 80
-  alert_email: ops@example.com
 
 recovery:
   enabled: true
-  snapshot_time_utc: "03:00"
-  retention_days: 7
 ```
 
-## 4. User data e estratégia de merge
+### 4. Guardrails
 
-Campos relevantes:
+- Autoscaling sem load balancer é bloqueado.
+- Opções de recovery validam dependências obrigatórias.
+- Regras customizadas de SG ficam limitadas ao tipo (`app`, `db`, `alb`).
 
-- `ec2.user_data_mode`
-  - `default`: usa apenas user data padrão do blueprint.
-  - `custom`: usa apenas user data informado no contrato.
-  - `merge`: concatena user data padrão + custom.
-
-- `ec2.user_data`
-  - conteúdo inline, ou
-  - referência externa via `file://caminho/arquivo`.
-
-O mesmo padrão pode ser aplicado para bloco de banco quando houver user data específico para DB EC2.
-
-## 4.1 Backend Terraform
-
-O backend remoto é definido no contrato via `terraform.backend`:
-
-- `bucket`: bucket S3 de state remoto.
-- `key_prefix`: prefixo para isolar estados por time/empresa (a key final inclui app e ambiente).
-- `region`: região do bucket de state.
-- `use_lockfile`: habilita lock de state no backend S3.
-
-## 5. Guardrails principais
-
-- Auto Scaling sem Load Balancer é bloqueado na validação.
-- Operações de recovery validam pré-requisitos de recursos dependentes.
-- Regras extras de Security Group são lidas de arquivos em `security-groups/` por tipo de SG (`app`, `db`, `alb`).
-
-## 6. Outputs esperados
-
-Dependendo da combinação de recursos, os outputs incluem:
-
-- IDs e IPs de instâncias.
-- DNS do ALB.
-- nome do ASG.
-- referências de observabilidade (dashboards/alarmes).
-- artefatos e comandos relacionados a recovery.
-
-## 7. Operação via CLI
+### 5. Operações via CLI
 
 ```bash
 go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
@@ -170,9 +141,9 @@ go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
 go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
 ```
 
-## 8. Diretórios de referência
+### 6. Caminhos de referência
 
-- contrato base: `stacks/ec2-app/dev/app.yaml`
-- contrato de produção: `stacks/ec2-app/prod/app.yaml`
-- regras de SG: `stacks/ec2-app/*/security-groups/*.yaml`
-- script de bootstrap exemplo: `stacks/ec2-app/*/scripts/app-user-data.ps1`
+- `stacks/ec2-app/dev/app.yaml`
+- `stacks/ec2-app/prod/app.yaml`
+- `stacks/ec2-app/*/security-groups/*.yaml`
+- `stacks/ec2-app/*/scripts/app-user-data.ps1`

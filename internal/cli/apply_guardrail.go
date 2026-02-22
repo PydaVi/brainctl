@@ -57,8 +57,8 @@ func isReplaceAction(actions []string) bool {
 }
 
 func confirmInstanceModify(resources []string) (bool, error) {
-	if strings.EqualFold(strings.TrimSpace(os.Getenv(guardrailApprovalEnv)), "SIM") {
-		fmt.Printf("[guardrail] Aprovação automática recebida via variável de ambiente %s=SIM.\n", guardrailApprovalEnv)
+	if isApprovedValue(os.Getenv(guardrailApprovalEnv)) {
+		fmt.Printf("[guardrail] Aprovação automática recebida via variável de ambiente %s.\n", guardrailApprovalEnv)
 		return true, nil
 	}
 
@@ -80,6 +80,15 @@ func confirmInstanceModify(resources []string) (bool, error) {
 		return false, err
 	}
 	return strings.EqualFold(strings.TrimSpace(line), "SIM"), nil
+}
+
+func isApprovedValue(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "sim", "true", "1", "yes", "y":
+		return true
+	default:
+		return false
+	}
 }
 
 func isInteractiveInput() bool {

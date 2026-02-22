@@ -125,5 +125,11 @@ jobs:
       - name: Run brainctl apply
         env:
           STACK_DIR: ${{ github.event_name == 'workflow_dispatch' && inputs.stack_dir || needs.extract-merge-target.outputs.stack_dir }}
-          BRAINCTL_INSTANCE_MODIFY_APPROVED: ${{ github.event_name == 'workflow_dispatch' && inputs.approve_instance_modify && 'SIM' || '' }}
-        run: go run ./cmd/brainctl apply --stack-dir "$STACK_DIR"
+          BRAINCTL_INSTANCE_MODIFY_APPROVED: ${{ vars.BRAINCTL_INSTANCE_MODIFY_APPROVED }}
+          APPROVE_INSTANCE_MODIFY_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.approve_instance_modify || 'false' }}
+        run: |
+          if [ "$APPROVE_INSTANCE_MODIFY_INPUT" = "true" ]; then
+            export BRAINCTL_INSTANCE_MODIFY_APPROVED=SIM
+          fi
+
+          go run ./cmd/brainctl apply --stack-dir "$STACK_DIR"

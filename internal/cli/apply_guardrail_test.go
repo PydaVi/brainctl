@@ -46,3 +46,21 @@ func TestConfirmInstanceModify_AutoApprovedByEnv(t *testing.T) {
 		t.Fatal("expected automatic approval to return true")
 	}
 }
+
+func TestIsApprovedValue(t *testing.T) {
+	t.Parallel()
+
+	approved := []string{"SIM", "sim", "true", "1", "yes", "Y"}
+	for _, v := range approved {
+		if !isApprovedValue(v) {
+			t.Fatalf("expected %q to be approved", v)
+		}
+	}
+
+	rejected := []string{"", "nao", "false", "0", "no"}
+	for _, v := range rejected {
+		if isApprovedValue(v) {
+			t.Fatalf("expected %q to be rejected", v)
+		}
+	}
+}

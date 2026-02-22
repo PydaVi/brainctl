@@ -11,8 +11,8 @@ on:
         description: "Digite DESTROY para confirmar"
         required: true
         default: ""
-  schedule:
-    - cron: "0 * * * *" # checa a cada 1h
+  #schedule:
+  #  - cron: "0 * * * *" # checa a cada 1h
 
 permissions:
   contents: read

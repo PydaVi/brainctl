@@ -15,7 +15,7 @@ $pageHtml = @'
         --muted: #94a3b8;
         --accent: #38bdf8;
         --accent-2: #818cf8;
-        --ok: #22c55e;
+        --ok: #22c55f;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; }

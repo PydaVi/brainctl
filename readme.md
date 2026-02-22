@@ -1,5 +1,300 @@
 # brainctl 🧠
 
+Infraestrutura como contrato, não como improviso
+
+---
+
+## Sobre o projeto
+
+O **brainctl** é um projeto que nasceu de experiências reais trabalhando com infraestrutura corporativa em crescimento.
+Ele não tenta reinventar o Terraform nem substituir ferramentas existentes. A ideia é mais simples: estudar formas de ajudar times a padronizar infraestrutura, reduzir erros operacionais e aplicar segurança e observabilidade desde o início, sem precisar que todos fossem especialistas em terraform e gestão de IAC.
+
+Esse projeto também representa meu aprofundamento nos estudos de **Engenharia de Plataforma**, **Cloud Security** e **automação de infraestrutura orientada a produto**.
+
+---
+
+## Contexto e motivação
+
+Em muitos ambientes corporativos, principalmente com workloads legados, a infraestrutura cresce com alguns padrões que acabam se repetindo:
+
+* ambientes semelhantes criados de formas diferentes;
+* configurações feitas manualmente;
+* dependência de pessoas específicas para operar;
+* dificuldade de auditoria e governança;
+* disaster recovery tratado como documentação, não como prática.
+
+O brainctl é uma tentativa prática de resolver esses problemas aplicando:
+
+* contratos declarativos simples;
+* validações automáticas;
+* geração estruturada de Terraform;
+* observabilidade e recovery como parte do deploy, não como etapa posterior.
+
+---
+
+## Objetivo do projeto
+
+O objetivo do brainctl não é ser um produto comercial pronto.
+Ele é uma base de experimentação e aprendizado para construir uma abordagem de **Infraestrutura como Produto**.
+
+Isso significa:
+
+* Infra deixa de ser apenas provisionamento técnico;
+* Passa a ser uma plataforma reutilizável para times;
+* Com regras, padrões e previsibilidade.
+
+---
+
+## Ideia central
+
+```text
+app.yaml (+ security-groups/*.yaml)
+        ↓
+validação e guardrails
+        ↓
+geração de Terraform estruturado
+        ↓
+provisionamento AWS
+        ↓
+ambiente já preparado para operação
+```
+
+O foco é permitir que times descrevam o workload necessário enquanto o brainctl garante padrões mínimos de segurança, disponibilidade e governança.
+
+---
+
+## Arquitetura do projeto
+
+```text
+cmd/brainctl                # entrada da CLI
+internal/config             # parser, defaults e validações
+internal/generator          # geração do workspace Terraform
+internal/blueprints/ec2app  # blueprint de workload EC2 app
+internal/blueprints/k8sworkers # blueprint de workload Kubernetes lab
+internal/terraform          # wrapper de comandos Terraform
+internal/workspace          # preparação do diretório de execução
+terraform-modulesec2-app    # módulo Terraform base ec2-app
+terraform-modulesk8s-workers # módulo Terraform do blueprint k8s-workers
+stacks/ec2-app/dev|prod     # contratos do blueprint ec2-app
+stacks/k8s-workers/dev|prod # contratos do blueprint k8s-workers
+```
+
+---
+
+## Workload suportado atualmente
+
+### ec2-app
+
+Blueprint focado em aplicações que ainda rodam em EC2, muito comum em ambientes corporativos.
+
+Inclui:
+
+* Instância de aplicação
+* Instância de banco opcional
+* Security Groups padronizados
+* Outputs operacionais para troubleshooting e automação
+
+### k8s-workers
+
+Blueprint didático para Kubernetes self-managed em EC2 usando kubeadm (sem EKS).
+
+Inclui:
+
+* 1 control-plane + N workers
+* bootstrap automático com kubeadm init/join
+* Security Group mínimo para API server e tráfego entre nós
+* instruções de kubeconfig e validação do cluster
+
+Documentação técnica:
+- `docs/blueprints/ec2-app.md`
+- `docs/blueprints/kubernetes-workers.md`
+- `docs/cicd-v1.md`
+
+---
+
+## Escalabilidade e disponibilidade
+
+O brainctl permite provisionar:
+
+* Application Load Balancer público ou privado
+* Target groups e listeners
+* Auto Scaling Group para camada de aplicação
+* Políticas baseadas em CPU
+* Suporte a multi-AZ
+
+### Guardrails aplicados
+
+* Não permite Auto Scaling sem Load Balancer
+* Impede configurações que gerariam ambiente inconsistente
+
+---
+
+## Observabilidade operacional
+
+O projeto provisiona automaticamente:
+
+* Dashboards CloudWatch
+* Alarmes configuráveis
+* Notificações via SNS
+* Integração com Session Manager
+* Configuração contínua do CloudWatch Agent via SSM State Manager (sem rebuild de instância)
+* Suporte a endpoints privados de SSM, CloudWatch (Logs/Metrics) e STS
+* Endpoints privados distribuídos nas subnets configuradas para infraestrutura
+
+Objetivo: o ambiente nasce com visibilidade operacional mínima garantida.
+
+---
+
+## Recovery e continuidade
+
+Implementado como parte do blueprint, não como solução separada:
+
+* Snapshots automáticos via DLM
+* Runbooks SSM para restore
+* Restore completo de aplicação
+* DR drill agendado via EventBridge
+
+### Guardrails de recovery
+
+Exemplos:
+
+* DR drill exige recovery habilitado
+* Backup de banco exige banco ativo
+* DR com registro em load balancer valida pré-requisitos de observabilidade e disponibilidade
+
+---
+
+## Contrato declarativo
+
+Exemplo simplificado:
+
+```yaml
+workload:
+  type: ec2-app
+  version: v1
+
+terraform:
+  backend:
+    bucket: "seu-bucket-de-state"
+    key_prefix: "brainctl"
+    region: "us-east-1"
+    use_lockfile: true
+
+app:
+  name: brain-test
+  environment: dev
+  region: us-east-1
+
+ec2:
+  instance_type: t3.micro
+
+lb:
+  enabled: true
+
+observability:
+  enabled: true
+
+recovery:
+  enabled: true
+```
+
+A proposta é manter o contrato compreensível para times de aplicação, não apenas para especialistas em Terraform.
+
+> O backend remoto do Terraform é configurado via contrato (`terraform.backend`) para evitar hardcode de bucket/região e permitir isolamento por empresa/conta/ambiente.
+
+---
+
+## Regras de Security Group por arquivos
+
+O brainctl permite customizações de rede através de arquivos YAML por SG em `security-groups/`, mantendo escopo controlado por tipo (`app`, `db`, `alb`).
+
+---
+
+## Execução da CLI
+
+> Para `brainctl cost`, tenha o binário `infracost` instalado e autenticado (`INFRACOST_API_KEY`).
+
+```bash
+go run ./cmd/brainctl plan   --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl apply  --stack-dir stacks/ec2-app/dev
+# se o plan detectar modify/replace em instância, o brainctl pede confirmação explícita
+# para CI/automação, bypass do guardrail: --force-instance-modify
+go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
+# custo base com Infracost (EC2, EBS, RDS, ALB, NAT, EIP, VPC Endpoint, CloudWatch Logs + outros itens com preço no plan)
+go run ./cmd/brainctl cost   --stack-dir stacks/ec2-app/dev
+
+# blueprint k8s-workers (lab kubeadm)
+go run ./cmd/brainctl plan   --stack-dir stacks/k8s-workers/dev
+go run ./cmd/brainctl apply  --stack-dir stacks/k8s-workers/dev
+```
+
+---
+
+## User Data externo
+
+Para manter contratos limpos:
+
+```yaml
+ec2:
+  user_data_mode: merge
+  user_data: file://scripts/app-user-data.ps1
+```
+
+---
+
+## Outputs gerados
+
+Exemplos:
+
+* IPs e IDs das instâncias
+* Nome do ASG
+* DNS do Load Balancer
+* URLs de dashboards
+* Runbooks de recovery
+* Agenda de DR drill
+
+---
+
+Esse projeto também serve como laboratório para testar ideias que podem ser aplicadas em ambientes corporativos reais.
+
+---
+
+## Limitações atuais
+
+O projeto ainda é experimental e focado em:
+
+* workloads EC2
+* ambientes AWS
+* blueprint específico
+
+Ele não tenta ser uma plataforma universal nem substituir soluções completas de IDP.
+
+---
+
+## Próximos estudos e evoluções
+
+Direções que pretendo explorar:
+
+* novos blueprints
+* melhoria de validações
+* integração com pipelines CI/CD
+* evolução da estratégia de DR
+* integração com práticas de segurança mais profundas, com novas automações de resposta a incidentes.
+
+---
+
+## Conclusão
+
+O brainctl é uma tentativa prática de tratar infraestrutura com o mesmo cuidado que tratamos aplicações: com versionamento, contratos claros e previsibilidade operacional.
+
+Ele nasceu como projeto pessoal, mas reflete desafios comuns em ambientes corporativos e serve como base para explorar modelos mais maduros de operação em cloud.
+
+---
+
+---
+
 ## English
 
 Infrastructure as contract, not improvisation.
@@ -89,91 +384,3 @@ recovery:
 ```
 
 ---
-
-## Português
-
-Infraestrutura como contrato, não como improviso.
-
-O `brainctl` é uma CLI que lê um contrato declarativo de stack (`app.yaml` + `security-groups/*.yaml` opcionais), valida guardrails e gera Terraform estruturado para workloads AWS.
-
-### Blueprints suportados atualmente
-
-- **ec2-app**: workload de aplicação em EC2 com banco opcional, opções de ALB/ASG, observabilidade e recovery.
-- **k8s-workers**: laboratório Kubernetes self-managed em EC2 com kubeadm (control-plane + workers).
-
-Documentação técnica:
-- `docs/blueprints/ec2-app.md`
-- `docs/blueprints/kubernetes-workers.md`
-- `docs/cicd-v1.md`
-
-### Fluxo central
-
-```text
-app.yaml (+ security-groups/*.yaml)
-        ↓
-validação + guardrails
-        ↓
-geração estruturada de Terraform
-        ↓
-provisionamento aws
-        ↓
-ambiente preparado para operação
-```
-
-### Estrutura do repositório
-
-```text
-cmd/brainctl                     # entrada da CLI
-internal/config                  # parser, defaults, validações
-internal/generator               # geração do workspace Terraform
-internal/blueprints/ec2app       # gerador do blueprint ec2-app
-internal/blueprints/k8sworkers   # gerador do blueprint k8s-workers
-internal/terraform               # wrapper de comandos Terraform
-internal/workspace               # preparação do diretório de execução
-terraform-modulesec2-app         # módulo Terraform base (ec2-app)
-terraform-modulesk8s-workers     # módulo Terraform (k8s-workers)
-stacks/ec2-app/dev|prod          # contratos do ec2-app
-stacks/k8s-workers/dev|prod      # contratos do k8s-workers
-```
-
-### Uso da CLI
-
-```bash
-go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl apply --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
-```
-
-### Exemplo de contrato
-
-```yaml
-workload:
-  type: ec2-app
-  version: v1
-
-terraform:
-  backend:
-    bucket: "seu-bucket-de-state"
-    key_prefix: "brainctl"
-    region: "us-east-1"
-    use_lockfile: true
-
-app:
-  name: brain-test
-  environment: dev
-  region: us-east-1
-
-ec2:
-  instance_type: t3.micro
-
-lb:
-  enabled: true
-
-observability:
-  enabled: true
-
-recovery:
-  enabled: true
-```

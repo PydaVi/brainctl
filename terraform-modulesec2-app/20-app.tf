@@ -1,26 +1,33 @@
+locals {
+  app_ingress_rules_raw = concat(
+    [
+      {
+        description = "RDP"
+        from_port   = 3389
+        to_port     = 3389
+        protocol    = "tcp"
+        cidr_blocks = [var.allowed_rdp_cidr]
+      }
+    ],
+    var.app_extra_ingress_rules,
+  )
+
+  app_ingress_rules = {
+    for rule in local.app_ingress_rules_raw :
+    format("%s|%d|%d|%s", rule.protocol, rule.from_port, rule.to_port, join(",", sort(distinct(rule.cidr_blocks)))) => {
+      description = rule.description
+      from_port   = rule.from_port
+      to_port     = rule.to_port
+      protocol    = rule.protocol
+      cidr_blocks = sort(distinct(rule.cidr_blocks))
+    }
+  }
+}
+
 resource "aws_security_group" "app_sg" {
   name        = "${var.name}-${var.environment}-sg"
   description = "Security group for ${var.name}"
   vpc_id      = var.vpc_id
-
-  ingress {
-    description = "RDP"
-    from_port   = 3389
-    to_port     = 3389
-    protocol    = "tcp"
-    cidr_blocks = [var.allowed_rdp_cidr]
-  }
-
-  dynamic "ingress" {
-    for_each = var.app_extra_ingress_rules
-    content {
-      description = ingress.value.description
-      from_port   = ingress.value.from_port
-      to_port     = ingress.value.to_port
-      protocol    = ingress.value.protocol
-      cidr_blocks = ingress.value.cidr_blocks
-    }
-  }
 
   egress {
     from_port   = 0
@@ -34,6 +41,17 @@ resource "aws_security_group" "app_sg" {
     Environment = var.environment
     ManagedBy   = "brainctl"
   }
+}
+
+resource "aws_security_group_rule" "app_ingress" {
+  for_each          = local.app_ingress_rules
+  type              = "ingress"
+  security_group_id = aws_security_group.app_sg.id
+  description       = each.value.description
+  from_port         = each.value.from_port
+  to_port           = each.value.to_port
+  protocol          = each.value.protocol
+  cidr_blocks       = each.value.cidr_blocks
 }
 
 resource "aws_instance" "app" {

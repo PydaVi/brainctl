@@ -10,7 +10,7 @@ terraform:
     use_lockfile: true
 
 app:
-  name: brain-teste-3
+  name: brain-teste-4
   environment: dev
   region: us-east-1
 

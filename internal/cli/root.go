@@ -7,12 +7,12 @@ import (
 
 	"github.com/PydaVi/brainctl/internal/blueprints"
 	"github.com/PydaVi/brainctl/internal/outputs"
-	"github.com/PydaVi/brainctl/internal/terraform"
+	"github.com/PydaVi/brainctl/internal/terragrunt"
 )
 
 type runtimeContext struct {
 	Config *RuntimeConfig
-	Runner *terraform.Runner
+	Runner *terragrunt.Runner
 	WSDir  string
 }
 
@@ -28,14 +28,14 @@ func NewRootCommand() *cobra.Command {
 
 	planCmd := &cobra.Command{
 		Use:   "plan",
-		Short: "Generate terraform and run terraform init/plan",
+		Short: "Generate workspace and run terragrunt init/plan",
 		RunE:  withRuntime(opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error { return ctx.Runner.Plan() }),
 	}
 	applyCommonFlags(planCmd, &opts)
 
 	applyCmd := &cobra.Command{
 		Use:   "apply",
-		Short: "Generate terraform and run terraform init/plan/apply (auto-approve by default)",
+		Short: "Generate workspace and run terragrunt init/plan/apply (auto-approve by default)",
 		RunE: withRuntime(opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 			autoApprove, _ := cmd.Flags().GetBool("auto-approve")
 			forceInstanceModify, _ := cmd.Flags().GetBool("force-instance-modify")
@@ -74,7 +74,7 @@ func NewRootCommand() *cobra.Command {
 
 	destroyCmd := &cobra.Command{
 		Use:   "destroy",
-		Short: "Run terraform destroy for the generated workspace (auto-approve by default)",
+		Short: "Run terragrunt destroy for the generated workspace (auto-approve by default)",
 		RunE: withRuntime(opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 			autoApprove, _ := cmd.Flags().GetBool("auto-approve")
 			return ctx.Runner.Destroy(autoApprove)
@@ -92,7 +92,7 @@ func NewRootCommand() *cobra.Command {
 
 	outputCmd := &cobra.Command{
 		Use:   "output",
-		Short: "Print terraform outputs (json)",
+		Short: "Print terragrunt outputs (json)",
 		RunE: withRuntime(opts, true, func(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 			out, err := ctx.Runner.OutputJSON()
 			if err != nil {
@@ -121,7 +121,7 @@ func NewRootCommand() *cobra.Command {
 	return root
 }
 
-func withRuntime(opts RuntimeOptions, initTerraform bool, run commandRunner) func(cmd *cobra.Command, args []string) error {
+func withRuntime(opts RuntimeOptions, initTerragrunt bool, run commandRunner) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		runtimeOpts := optionsFromFlags(cmd)
 		cfg, err := LoadRuntimeConfig(runtimeOpts)
@@ -134,8 +134,8 @@ func withRuntime(opts RuntimeOptions, initTerraform bool, run commandRunner) fun
 			return err
 		}
 
-		r := terraform.NewRunner(wsDir)
-		if initTerraform {
+		r := terragrunt.NewRunner(wsDir)
+		if initTerragrunt {
 			if err := r.Init(); err != nil {
 				return err
 			}
@@ -215,7 +215,7 @@ func statusRun(cmd *cobra.Command, args []string, ctx *runtimeContext) error {
 
 	raw, err := ctx.Runner.OutputJSON()
 	if err != nil {
-		fmt.Println("Outputs: unavailable (terraform output failed)")
+		fmt.Println("Outputs: unavailable (terragrunt output failed)")
 		return nil
 	}
 	vals, err := outputs.ParseTerraformOutputJSON(raw)

@@ -75,6 +75,59 @@ func (r *Runner) OutputJSON() ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
+// ShowPlanJSON retorna o JSON detalhado de um arquivo de plano do Terragrunt.
+// Usamos o comando "terragrunt show -json" para preservar a compatibilidade com o Terraform.
+func (r *Runner) ShowPlanJSON(planFile string) ([]byte, error) {
+	if planFile == "" {
+		return nil, fmt.Errorf("plan file is required")
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd := exec.Command("terragrunt", "show", "-json", planFile)
+	cmd.Dir = r.wsDir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("terragrunt show -json: %w: %s", err, stderr.String())
+	}
+	return stdout.Bytes(), nil
+}
+
+// ApplyPlan aplica um arquivo de plano salvo.
+func (r *Runner) ApplyPlan(planFile string, autoApprove bool) error {
+	if planFile == "" {
+		return fmt.Errorf("plan file is required")
+	}
+	args := []string{"apply"}
+	if autoApprove {
+		args = append(args, "-auto-approve")
+	}
+	args = append(args, planFile)
+	return r.run(args...)
+}
+
+// StatePull verifica se o state remoto está acessível via Terragrunt.
+// No MVP, qualquer erro é tratado como state ausente/inacessível.
+func (r *Runner) StatePull() (present bool, err error) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd := exec.Command("terragrunt", "state", "pull")
+	cmd.Dir = r.wsDir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (r *Runner) run(args ...string) error {
 	if r.wsDir == "" {
 		return fmt.Errorf("workspace dir is required")

@@ -7,7 +7,6 @@ import (
 
 	"github.com/PydaVi/brainctl/internal/config"
 	"github.com/PydaVi/brainctl/internal/generator"
-	"github.com/PydaVi/brainctl/internal/workspace"
 )
 
 type RuntimeOptions struct {
@@ -58,11 +57,12 @@ func LoadRuntimeConfig(opts RuntimeOptions) (*RuntimeConfig, error) {
 }
 
 func (r *RuntimeConfig) PrepareWorkspace() (string, error) {
-	wsDir, err := workspace.Prepare(r.App)
-	if err != nil {
-		return "", err
+	contractPath := r.Opts.File
+	if !filepath.IsAbs(contractPath) {
+		contractPath = filepath.Join(r.Opts.StackDir, r.Opts.File)
 	}
-	if err := generator.Generate(wsDir, r.App); err != nil {
+	wsDir, err := generator.PrepareWorkspace(r.App, contractPath)
+	if err != nil {
 		return "", err
 	}
 	return wsDir, nil

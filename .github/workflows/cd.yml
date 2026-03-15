@@ -1,0 +1,9 @@
+# Pipeline de CD pós-merge: plan, aprovação manual em prod e apply via OIDC.
+# Este stub existe para registrar o fluxo v2 antes da implementação.
+name: cd
+
+on:
+  push:
+    branches: [main]
+
+jobs: {}

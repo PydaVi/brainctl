@@ -1,7 +1,14 @@
 // Package terragrunt fornece a camada de execução da CLI Terragrunt.
-// Este stub existe para separar explicitamente a orquestração (Terragrunt)
-// da UX da CLI brainctl enquanto a implementação é construída.
+// Usamos os/exec porque não existe uma biblioteca Go estável do Terragrunt;
+// delegar ao binário oficial reduz acoplamento e mantém compatibilidade.
 package terragrunt
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+)
 
 // Runner executa comandos Terragrunt dentro de um workspace gerado.
 // O campo wsDir é mantido explícito para evitar dependência implícita de cwd.
@@ -16,37 +23,71 @@ func NewRunner(wsDir string) *Runner {
 }
 
 // Init prepara o backend e módulos via Terragrunt.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) Init() error {
-	return nil
+	return r.run("init")
 }
 
 // Plan executa um plan sem arquivo de saída.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) Plan() error {
-	return nil
+	return r.run("plan")
 }
 
 // PlanOut executa um plan e salva no arquivo informado.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) PlanOut(planFile string) error {
-	return nil
+	if planFile == "" {
+		return fmt.Errorf("plan file is required")
+	}
+	return r.run("plan", "-out", planFile)
 }
 
 // Apply executa apply, opcionalmente com auto-approve.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) Apply(autoApprove bool) error {
-	return nil
+	args := []string{"apply"}
+	if autoApprove {
+		args = append(args, "-auto-approve")
+	}
+	return r.run(args...)
 }
 
 // Destroy executa destroy, opcionalmente com auto-approve.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) Destroy(autoApprove bool) error {
-	return nil
+	args := []string{"destroy"}
+	if autoApprove {
+		args = append(args, "-auto-approve")
+	}
+	return r.run(args...)
 }
 
 // OutputJSON retorna o output do Terragrunt em JSON.
-// Stub: a implementação real chamará o binário terragrunt.
 func (r *Runner) OutputJSON() ([]byte, error) {
-	return nil, nil
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd := exec.Command("terragrunt", "output", "-json")
+	cmd.Dir = r.wsDir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("terragrunt output -json: %w: %s", err, stderr.String())
+	}
+	return stdout.Bytes(), nil
+}
+
+func (r *Runner) run(args ...string) error {
+	if r.wsDir == "" {
+		return fmt.Errorf("workspace dir is required")
+	}
+
+	cmd := exec.Command("terragrunt", args...)
+	cmd.Dir = r.wsDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("terragrunt %s: %w", args[0], err)
+	}
+	return nil
 }

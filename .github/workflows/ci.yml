@@ -102,6 +102,18 @@ jobs:
           esac
           echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
 
+      - name: Install Terragrunt
+        shell: bash
+        run: |
+          version="${{ vars.TERRAGRUNT_VERSION }}"
+          if [ -z "$version" ]; then
+            echo "vars.TERRAGRUNT_VERSION não definido (ex: v0.67.0)"
+            exit 1
+          fi
+          curl -sSL -o /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/${version}/terragrunt_linux_amd64"
+          chmod +x /usr/local/bin/terragrunt
+          terragrunt --version
+
       - name: Run brainctl plan
         run: |
           mkdir -p artifacts

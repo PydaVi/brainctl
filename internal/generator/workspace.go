@@ -158,7 +158,11 @@ func PrepareWorkspace(cfg *config.AppConfig, contractPath string) (string, error
 // Generate cria o terragrunt.hcl e prepara o módulo alvo dentro do workspace.
 // A geração depende do AppConfig validado para manter defaults consistentes.
 func Generate(wsDir string, cfg *config.AppConfig, contractPath string) error {
-	repoRoot, err := findRepoRoot(filepath.Dir(contractPath))
+	absContract, err := filepath.Abs(contractPath)
+	if err != nil {
+		return fmt.Errorf("resolve contract path: %w", err)
+	}
+	repoRoot, err := findRepoRoot(filepath.Dir(absContract))
 	if err != nil {
 		return fmt.Errorf("resolve repo root: %w", err)
 	}
@@ -173,7 +177,7 @@ func Generate(wsDir string, cfg *config.AppConfig, contractPath string) error {
 		return fmt.Errorf("prepare module link: %w", err)
 	}
 
-	rendered, err := renderTerragruntHCL(cfg, contractPath, filepath.ToSlash(filepath.Join("modules", cfg.Workload.Type)))
+	rendered, err := renderTerragruntHCL(cfg, absContract, filepath.ToSlash(filepath.Join("modules", cfg.Workload.Type)))
 	if err != nil {
 		return fmt.Errorf("render terragrunt.hcl: %w", err)
 	}

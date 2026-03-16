@@ -380,7 +380,6 @@ variable "enable_observability" {
 variable "cloudwatch_log_kms_key_id" {
   description = "KMS Key ID/ARN para criptografia do Log Group do CloudWatch"
   type        = string
-  default     = ""
 
   validation {
     condition     = !var.enable_observability || trimspace(var.cloudwatch_log_kms_key_id) != ""

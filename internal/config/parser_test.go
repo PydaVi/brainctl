@@ -21,12 +21,16 @@ app:
   region: us-east-1
 infrastructure:
   vpc_id: vpc-123456
+  vpc_cidr: 10.0.0.0/16
   subnet_id: subnet-123456
 ec2:
   instance_type: t3.micro
   os: windows
   ami: ami-123456
   user_data_mode: default
+observability:
+  enabled: true
+  log_kms_key_id: alias/test-logs
 `
 
 	if err := os.WriteFile(cfgPath, []byte(yaml), 0o644); err != nil {
@@ -61,9 +65,11 @@ func TestValidate_InvalidWorkloadVersion(t *testing.T) {
 	cfg.App.Region = "us-east-1"
 	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.VpcCIDR = "10.0.0.0/16"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
 	cfg.EC2.UserDataMode = "default"
+	cfg.Observability.LogKMSKeyID = "alias/test-logs"
 
 	err := cfg.Validate()
 	if err == nil || err.Error() != "workload.version must be 'v1'" {
@@ -82,6 +88,7 @@ func TestValidate_SSMEndpointsRequiresObservability(t *testing.T) {
 	cfg.App.Region = "us-east-1"
 	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.VpcCIDR = "10.0.0.0/16"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
 	cfg.EC2.UserDataMode = "default"
@@ -108,6 +115,7 @@ func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
 	cfg.App.Region = "us-east-1"
 	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.VpcCIDR = "10.0.0.0/16"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
 	cfg.EC2.UserDataMode = "default"
@@ -116,6 +124,7 @@ func TestValidate_SSMPrivateDNSRequiresEndpoints(t *testing.T) {
 	ssmEndpoints := false
 	ssmPrivateDNS := true
 	cfg.Observability.Enabled = &obsEnabled
+	cfg.Observability.LogKMSKeyID = "alias/test-logs"
 	cfg.Observability.EnableSSMEndpoints = &ssmEndpoints
 	cfg.Observability.EnableSSMPrivateDNS = &ssmPrivateDNS
 
@@ -134,9 +143,11 @@ func minimalValidConfig() *AppConfig {
 	cfg.App.Region = "us-east-1"
 	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.VpcCIDR = "10.0.0.0/16"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 	cfg.EC2.InstanceType = "t3.micro"
 	cfg.EC2.UserDataMode = "default"
+	cfg.Observability.LogKMSKeyID = "alias/test-logs"
 	return cfg
 }
 
@@ -248,6 +259,7 @@ func TestValidate_K8sWorkersMinimal(t *testing.T) {
 	cfg.App.Region = "us-east-1"
 	cfg.Terraform.Backend.Bucket = "brainctl-test-state"
 	cfg.Infrastructure.VpcID = "vpc-123"
+	cfg.Infrastructure.VpcCIDR = "10.0.0.0/16"
 	cfg.Infrastructure.SubnetID = "subnet-123"
 
 	if err := cfg.Validate(); err != nil {

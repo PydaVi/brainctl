@@ -30,7 +30,6 @@ remote_state {
     bucket       = {{ quote .BackendBucket }}
     key          = {{ quote .BackendKey }}
     region       = {{ quote .BackendRegion }}
-    use_lockfile = {{ .BackendUseLockfile }}
     encrypt      = true
   }
 }
@@ -209,7 +208,6 @@ func renderTerragruntHCL(cfg *config.AppConfig, contractPath string, moduleSourc
 		BackendBucket:                      cfg.Terraform.Backend.Bucket,
 		BackendKey:                         backendKey(cfg),
 		BackendRegion:                      cfg.Terraform.Backend.Region,
-		BackendUseLockfile:                 derefBool(cfg.Terraform.Backend.UseLockfile),
 		ModuleSource:                       moduleSource,
 		WorkloadType:                       cfg.Workload.Type,
 		AppUserDataB64:                     base64.StdEncoding.EncodeToString([]byte(cfg.EC2.UserData)),
@@ -239,7 +237,6 @@ type terragruntTemplateData struct {
 	BackendBucket                      string
 	BackendKey                         string
 	BackendRegion                      string
-	BackendUseLockfile                 bool
 	ModuleSource                       string
 	WorkloadType                       string
 	AppUserDataB64                     string

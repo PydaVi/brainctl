@@ -1,9 +1,105 @@
 # Pipeline de CD pós-merge: plan, aprovação manual em prod e apply via OIDC.
-# Este stub existe para registrar o fluxo v2 antes da implementação.
 name: cd
 
 on:
   push:
     branches: [main]
 
-jobs: {}
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Terragrunt plan (post-merge)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      stack_dir: ${{ steps.resolve.outputs.stack_dir }}
+      environment: ${{ steps.resolve.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve stack dir and environment
+        id: resolve
+        shell: bash
+        run: |
+          stack_dir="${{ vars.STACK_DIR }}"
+          if [ -z "$stack_dir" ]; then
+            echo "vars.STACK_DIR não definido (ex: stacks/ec2-app/prod)"
+            exit 1
+          fi
+
+          case "$stack_dir" in
+            */dev) environment="dev" ;;
+            */staging) environment="staging" ;;
+            */prod) environment="prod" ;;
+            *)
+              echo "Não foi possível inferir environment a partir do stack_dir: $stack_dir"
+              exit 1
+              ;;
+          esac
+
+          echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Run brainctl plan
+        run: |
+          mkdir -p artifacts
+          go run ./cmd/brainctl plan --stack-dir "${{ steps.resolve.outputs.stack_dir }}" | tee artifacts/plan-output.txt
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terragrunt-plan-${{ github.run_id }}
+          path: artifacts/plan-output.txt
+
+  approve:
+    name: Manual approval
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: ${{ needs.plan.outputs.environment }}
+    steps:
+      - name: Await approval
+        run: echo "Aguardando aprovação manual no environment ${{ needs.plan.outputs.environment }}."
+
+  apply:
+    name: Terragrunt apply
+    runs-on: ubuntu-latest
+    needs: [plan, approve]
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ needs.plan.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Run brainctl apply
+        run: go run ./cmd/brainctl apply --stack-dir "${{ needs.plan.outputs.stack_dir }}"

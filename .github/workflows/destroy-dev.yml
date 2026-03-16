@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   destroy-dev:
@@ -33,31 +34,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate required secrets
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          test -n "$AWS_ACCESS_KEY_ID" || (echo "Secret ausente: AWS_ACCESS_KEY_ID" && exit 1)
-          test -n "$AWS_SECRET_ACCESS_KEY" || (echo "Secret ausente: AWS_SECRET_ACCESS_KEY" && exit 1)
-          test -n "$AWS_REGION" || (echo "Secret ausente: AWS_REGION" && exit 1)
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Decide destroy mode
         id: decide

@@ -20,9 +20,7 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           version: latest
-
-      - name: Run tfsec (modules/)
-        run: tfsec modules/
+          working_directory: modules
 
       - name: Setup Trivy
         uses: aquasecurity/trivy-action@0.21.0

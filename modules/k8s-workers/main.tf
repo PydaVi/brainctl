@@ -48,6 +48,7 @@ locals {
   create_nat_gateway               = var.enable_nat_gateway
   use_existing_private_route_table = trimspace(var.private_route_table_id) != ""
   nat_public_subnet_cidr           = trimspace(var.public_subnet_cidr) != "" ? var.public_subnet_cidr : "10.0.254.0/24"
+  effective_egress_cidrs           = length(var.allowed_egress_cidrs) > 0 ? var.allowed_egress_cidrs : [var.vpc_cidr]
 }
 
 resource "aws_subnet" "nat_public" {
@@ -168,7 +169,8 @@ resource "aws_security_group" "cluster" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.effective_egress_cidrs
+    description = "Egress controlado para CIDRs aprovados"
   }
 
   tags = {
@@ -195,7 +197,8 @@ resource "aws_security_group" "ssm_endpoints" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.effective_egress_cidrs
+    description = "Egress controlado para CIDRs aprovados"
   }
 
   tags = {
@@ -283,6 +286,15 @@ resource "aws_instance" "control_plane" {
     pod_cidr           = var.pod_cidr
   })
 
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted = true
+  }
+
   depends_on = [
     aws_nat_gateway.cluster,
     aws_route.private_internet_via_nat,
@@ -311,6 +323,15 @@ resource "aws_instance" "workers" {
     kubernetes_version       = var.kubernetes_version
     control_plane_private_ip = aws_instance.control_plane.private_ip
   })
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted = true
+  }
 
   depends_on = [
     aws_nat_gateway.cluster,

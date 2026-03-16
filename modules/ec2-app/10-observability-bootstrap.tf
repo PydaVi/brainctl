@@ -36,6 +36,7 @@ resource "aws_cloudwatch_log_group" "brainctl" {
   count             = var.enable_observability ? 1 : 0
   name              = local.cw_log_group_name
   retention_in_days = 14
+  kms_key_id        = var.cloudwatch_log_kms_key_id
 
   tags = {
     Name        = local.cw_log_group_name
@@ -148,7 +149,8 @@ resource "aws_security_group" "ssm_endpoints" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.effective_egress_cidrs
+    description = "Egress controlado para CIDRs aprovados"
   }
 
   tags = {

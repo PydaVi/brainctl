@@ -43,10 +43,12 @@ inputs = {
   environment = {{ quote .App.Environment }}
   region      = {{ quote .App.Region }}
   vpc_id      = {{ quote .Infrastructure.VpcID }}
+  vpc_cidr    = {{ quote .Infrastructure.VpcCIDR }}
   subnet_id   = {{ quote .Infrastructure.SubnetID }}
 
   {{- if eq .WorkloadType "ec2-app" }}
   endpoint_subnet_ids = {{ hclStringList .Infrastructure.SubnetIDs }}
+  allowed_egress_cidrs = {{ hclStringList .AllowedEgressCIDRs }}
   instance_type       = {{ quote .EC2.InstanceType }}
   app_instance_count  = {{ .LB.InstanceCount }}
   app_ami_id          = {{ quote .EC2.AMI }}
@@ -80,7 +82,7 @@ inputs = {
   lb_subnet_ids    = {{ hclStringList .LB.SubnetIDs }}
   lb_listener_port = {{ .LB.ListenerPort }}
   app_port         = {{ .LB.TargetPort }}
-  lb_allowed_cidr  = {{ quote .LB.AllowedCIDR }}
+  lb_allowed_cidr  = {{ quote .AllowedLBCIDR }}
 
   enable_app_asg          = {{ .AppScaling.Enabled }}
   app_asg_subnet_ids      = {{ hclStringList .AppScaling.SubnetIDs }}
@@ -94,6 +96,7 @@ inputs = {
   enable_ssm_private_dns = {{ .ObservabilityEnableSSMPrivateDNS }}
   cpu_high_threshold     = {{ .Observability.CPUHighThreshold }}
   alert_email            = {{ quote .Observability.AlertEmail }}
+  cloudwatch_log_kms_key_id = {{ quote .Observability.LogKMSKeyID }}
 
   enable_recovery_mode                  = {{ .Recovery.Enabled }}
   recovery_snapshot_time_utc            = {{ quote .Recovery.SnapshotTimeUTC }}
@@ -112,6 +115,7 @@ inputs = {
 
   {{- if eq .WorkloadType "k8s-workers" }}
   endpoint_subnet_ids       = {{ hclStringList .Infrastructure.SubnetIDs }}
+  allowed_egress_cidrs       = {{ hclStringList .AllowedEgressCIDRs }}
   control_plane_ami         = {{ quote .K8s.ControlPlaneAMI }}
   worker_ami                = {{ quote .K8s.WorkerAMI }}
   control_plane_type        = {{ quote .K8s.ControlPlaneInstanceType }}
@@ -219,7 +223,9 @@ func renderTerragruntHCL(cfg *config.AppConfig, contractPath string, moduleSourc
 		RecoveryBackupDB:                   derefBool(cfg.Recovery.BackupDB),
 		RecoveryEnableRunbooks:             derefBool(cfg.Recovery.EnableRunbooks),
 		RecoveryDrillRegisterToTargetGroup: derefBool(cfg.Recovery.Drill.RegisterToTargetGroup),
-		AllowedRDPCIDR:                     "0.0.0.0/0",
+		AllowedRDPCIDR:                     effectiveCIDR(cfg.EC2.AllowedRDPCIDR, cfg.Infrastructure.VpcCIDR),
+		AllowedLBCIDR:                      effectiveCIDR(cfg.LB.AllowedCIDR, cfg.Infrastructure.VpcCIDR),
+		AllowedEgressCIDRs:                 effectiveEgressCIDRs(cfg.Infrastructure.AllowedEgressCIDRs, cfg.Infrastructure.VpcCIDR),
 	}
 
 	var buf bytes.Buffer
@@ -249,6 +255,27 @@ type terragruntTemplateData struct {
 	RecoveryEnableRunbooks             bool
 	RecoveryDrillRegisterToTargetGroup bool
 	AllowedRDPCIDR                     string
+	AllowedLBCIDR                      string
+	AllowedEgressCIDRs                 []string
+}
+
+// effectiveCIDR aplica fallback explícito para manter o template simples.
+func effectiveCIDR(primary, fallback string) string {
+	if strings.TrimSpace(primary) != "" {
+		return primary
+	}
+	return fallback
+}
+
+// effectiveEgressCIDRs garante que exista ao menos um CIDR de egress permitido.
+func effectiveEgressCIDRs(cidrs []string, fallback string) []string {
+	if len(cidrs) > 0 {
+		return cidrs
+	}
+	if strings.TrimSpace(fallback) == "" {
+		return nil
+	}
+	return []string{fallback}
 }
 
 // backendKey materializa o padrão de key com prefixo e app/ambiente.

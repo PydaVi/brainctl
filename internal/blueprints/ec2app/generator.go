@@ -47,8 +47,10 @@ module "app" {
   region      = "{{ .App.Region }}"
 
   vpc_id    = "{{ .Infrastructure.VpcID }}"
+  vpc_cidr  = "{{ .Infrastructure.VpcCIDR }}"
   subnet_id = "{{ .Infrastructure.SubnetID }}"
   endpoint_subnet_ids = [{{- range $i, $s := .Infrastructure.SubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
+  allowed_egress_cidrs = [{{- range $i, $c := .Infrastructure.AllowedEgressCIDRs -}}{{- if $i }}, {{ end }}"{{ $c }}"{{- end -}}]
 
   instance_type       = "{{ .EC2.InstanceType }}"
   app_instance_count  = {{ .LB.InstanceCount }}
@@ -56,7 +58,7 @@ module "app" {
   app_user_data_mode  = "{{ .EC2.UserDataMode }}"
   app_user_data_base64 = "{{ .AppUserDataB64 }}"
   imds_v2_required    = {{ .EC2.IMDSv2Required }}
-  allowed_rdp_cidr    = "0.0.0.0/0"
+  allowed_rdp_cidr    = "{{ .EC2.AllowedRDPCIDR }}"
 
   enable_db           = {{ .DB.Enabled }}
   db_mode             = "{{ .DB.Mode }}"
@@ -98,6 +100,7 @@ module "app" {
   enable_ssm_private_dns = {{ .ObservabilityEnableSSMPrivateDNS }}
   cpu_high_threshold   = {{ .Observability.CPUHighThreshold }}
   alert_email          = "{{ .Observability.AlertEmail }}"
+  cloudwatch_log_kms_key_id = "{{ .Observability.LogKMSKeyID }}"
 
   enable_recovery_mode         = {{ .Recovery.Enabled }}
   recovery_snapshot_time_utc   = "{{ .Recovery.SnapshotTimeUTC }}"

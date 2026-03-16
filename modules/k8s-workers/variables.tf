@@ -14,6 +14,15 @@ variable "vpc_id" {
   type = string
 }
 
+variable "vpc_cidr" {
+  type = string
+
+  validation {
+    condition     = trimspace(var.vpc_cidr) != "" && var.vpc_cidr != "0.0.0.0/0"
+    error_message = "vpc_cidr must be set and cannot be 0.0.0.0/0"
+  }
+}
+
 variable "subnet_id" {
   type = string
 }
@@ -56,6 +65,11 @@ variable "key_name" {
 variable "admin_cidr" {
   type    = string
   default = ""
+
+  validation {
+    condition     = trimspace(var.admin_cidr) == "" || var.admin_cidr != "0.0.0.0/0"
+    error_message = "admin_cidr cannot be 0.0.0.0/0"
+  }
 }
 
 variable "enable_nat_gateway" {
@@ -96,6 +110,16 @@ variable "enable_detailed_monitoring" {
 variable "endpoint_subnet_ids" {
   type    = list(string)
   default = []
+}
+
+variable "allowed_egress_cidrs" {
+  type    = list(string)
+  default = []
+
+  validation {
+    condition     = alltrue([for cidr in var.allowed_egress_cidrs : cidr != "0.0.0.0/0"])
+    error_message = "allowed_egress_cidrs cannot include 0.0.0.0/0"
+  }
 }
 
 variable "enable_ssm_vpc_endpoints" {

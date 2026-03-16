@@ -24,6 +24,27 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "vpc_cidr" {
+  description = "CIDR da VPC para regras internas"
+  type        = string
+
+  validation {
+    condition     = trimspace(var.vpc_cidr) != "" && var.vpc_cidr != "0.0.0.0/0"
+    error_message = "vpc_cidr must be set and cannot be 0.0.0.0/0"
+  }
+}
+
+variable "allowed_egress_cidrs" {
+  description = "Lista de CIDRs permitidos para egress nos security groups"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for cidr in var.allowed_egress_cidrs : cidr != "0.0.0.0/0"])
+    error_message = "allowed_egress_cidrs cannot include 0.0.0.0/0"
+  }
+}
+
 variable "subnet_id" {
   description = "Subnet da EC2 da aplicação (e DB, se habilitado)"
   type        = string
@@ -39,7 +60,11 @@ variable "endpoint_subnet_ids" {
 variable "allowed_rdp_cidr" {
   description = "CIDR permitido para RDP nas EC2 (apenas no SG da APP por enquanto)"
   type        = string
-  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = trimspace(var.allowed_rdp_cidr) != "" && var.allowed_rdp_cidr != "0.0.0.0/0"
+    error_message = "allowed_rdp_cidr must be set and cannot be 0.0.0.0/0"
+  }
 }
 
 # ----------------------------
@@ -62,6 +87,11 @@ variable "app_extra_ingress_rules" {
     cidr_blocks = list(string)
   }))
   default = []
+
+  validation {
+    condition     = alltrue([for rule in var.app_extra_ingress_rules : alltrue([for cidr in rule.cidr_blocks : cidr != "0.0.0.0/0"])])
+    error_message = "app_extra_ingress_rules cannot include 0.0.0.0/0"
+  }
 }
 
 
@@ -129,6 +159,11 @@ variable "db_extra_ingress_rules" {
     cidr_blocks = list(string)
   }))
   default = []
+
+  validation {
+    condition     = alltrue([for rule in var.db_extra_ingress_rules : alltrue([for cidr in rule.cidr_blocks : cidr != "0.0.0.0/0"])])
+    error_message = "db_extra_ingress_rules cannot include 0.0.0.0/0"
+  }
 }
 
 
@@ -278,12 +313,21 @@ variable "alb_extra_ingress_rules" {
     cidr_blocks = list(string)
   }))
   default = []
+
+  validation {
+    condition     = alltrue([for rule in var.alb_extra_ingress_rules : alltrue([for cidr in rule.cidr_blocks : cidr != "0.0.0.0/0"])])
+    error_message = "alb_extra_ingress_rules cannot include 0.0.0.0/0"
+  }
 }
 
 variable "lb_allowed_cidr" {
   description = "CIDR liberado para acessar o listener do ALB (somente para ALB público faz sentido abrir 0.0.0.0/0)"
   type        = string
-  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = trimspace(var.lb_allowed_cidr) != "" && var.lb_allowed_cidr != "0.0.0.0/0"
+    error_message = "lb_allowed_cidr must be set and cannot be 0.0.0.0/0"
+  }
 }
 
 
@@ -331,6 +375,17 @@ variable "enable_observability" {
   description = "Habilita recursos base de observabilidade (CloudWatch Agent, dashboards e alarmes)"
   type        = bool
   default     = true
+}
+
+variable "cloudwatch_log_kms_key_id" {
+  description = "KMS Key ID/ARN para criptografia do Log Group do CloudWatch"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.enable_observability || trimspace(var.cloudwatch_log_kms_key_id) != ""
+    error_message = "cloudwatch_log_kms_key_id is required when enable_observability=true"
+  }
 }
 
 variable "cpu_high_threshold" {

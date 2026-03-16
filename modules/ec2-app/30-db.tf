@@ -27,7 +27,8 @@ resource "aws_security_group" "db_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.effective_egress_cidrs
+    description = "Egress controlado para CIDRs aprovados"
   }
 
   tags = {
@@ -45,8 +46,17 @@ resource "aws_instance" "db" {
 
   vpc_security_group_ids = [aws_security_group.db_sg[0].id]
 
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
   iam_instance_profile = var.enable_observability ? aws_iam_instance_profile.ec2_cw_profile[0].name : null
   user_data            = local.db_effective_user_data != "" ? local.db_effective_user_data : null
+
+  root_block_device {
+    encrypted = true
+  }
 
   volume_tags = {
     Name        = "${var.name}-${var.environment}-db-root"

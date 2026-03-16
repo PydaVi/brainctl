@@ -25,9 +25,11 @@ type AppConfig struct {
 	} `yaml:"app"`
 
 	Infrastructure struct {
-		VpcID     string   `yaml:"vpc_id"`
-		SubnetID  string   `yaml:"subnet_id"`
-		SubnetIDs []string `yaml:"subnet_ids"`
+		VpcID              string   `yaml:"vpc_id"`
+		VpcCIDR            string   `yaml:"vpc_cidr"`
+		SubnetID           string   `yaml:"subnet_id"`
+		SubnetIDs          []string `yaml:"subnet_ids"`
+		AllowedEgressCIDRs []string `yaml:"allowed_egress_cidrs"`
 	} `yaml:"infrastructure"`
 
 	EC2 struct {
@@ -37,6 +39,7 @@ type AppConfig struct {
 		UserData       string `yaml:"user_data"`
 		UserDataMode   string `yaml:"user_data_mode"`
 		IMDSv2Required bool   `yaml:"imds_v2_required"`
+		AllowedRDPCIDR string `yaml:"allowed_rdp_cidr"`
 	} `yaml:"ec2"`
 
 	DB            DBConfig            `yaml:"db"`
@@ -141,6 +144,7 @@ type ObservabilityConfig struct {
 	AlertEmail          string `yaml:"alert_email"`
 	EnableSSMEndpoints  *bool  `yaml:"enable_ssm_endpoints"`
 	EnableSSMPrivateDNS *bool  `yaml:"enable_ssm_private_dns"`
+	LogKMSKeyID         string `yaml:"log_kms_key_id"`
 }
 
 // RecoveryConfig define snapshots automáticos e runbooks de recuperação.
@@ -364,8 +368,16 @@ func (c *AppConfig) Validate() error {
 	if c.Infrastructure.VpcID == "" {
 		return fmt.Errorf("infrastructure.vpc_id is required")
 	}
+	if c.Infrastructure.VpcCIDR == "" {
+		return fmt.Errorf("infrastructure.vpc_cidr is required")
+	}
 	if c.Infrastructure.SubnetID == "" {
 		return fmt.Errorf("infrastructure.subnet_id is required")
+	}
+	for _, cidr := range c.Infrastructure.AllowedEgressCIDRs {
+		if cidr == "0.0.0.0/0" {
+			return fmt.Errorf("infrastructure.allowed_egress_cidrs cannot include 0.0.0.0/0")
+		}
 	}
 
 	if c.Workload.Type == "k8s-workers" {
@@ -388,7 +400,10 @@ func (c *AppConfig) Validate() error {
 			c.K8s.PodCIDR = "10.244.0.0/16"
 		}
 		if c.K8s.AdminCIDR == "" {
-			c.K8s.AdminCIDR = "0.0.0.0/0"
+			c.K8s.AdminCIDR = c.Infrastructure.VpcCIDR
+		}
+		if c.K8s.AdminCIDR == "0.0.0.0/0" {
+			return fmt.Errorf("k8s.admin_cidr cannot be 0.0.0.0/0")
 		}
 		if c.K8s.EnableSSM == nil {
 			v := true
@@ -416,6 +431,12 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.EC2.UserDataMode == "custom" && strings.TrimSpace(c.EC2.UserData) == "" {
 		return fmt.Errorf("ec2.user_data is required when ec2.user_data_mode=custom")
+	}
+	if c.EC2.AllowedRDPCIDR == "" {
+		c.EC2.AllowedRDPCIDR = c.Infrastructure.VpcCIDR
+	}
+	if c.EC2.AllowedRDPCIDR == "0.0.0.0/0" {
+		return fmt.Errorf("ec2.allowed_rdp_cidr cannot be 0.0.0.0/0")
 	}
 
 	if c.DB.UserDataMode == "" {
@@ -513,7 +534,10 @@ func (c *AppConfig) Validate() error {
 			c.LB.TargetPort = 80
 		}
 		if c.LB.AllowedCIDR == "" {
-			c.LB.AllowedCIDR = "0.0.0.0/0"
+			c.LB.AllowedCIDR = c.Infrastructure.VpcCIDR
+		}
+		if c.LB.AllowedCIDR == "0.0.0.0/0" {
+			return fmt.Errorf("lb.allowed_cidr cannot be 0.0.0.0/0")
 		}
 		if len(c.LB.SubnetIDs) < 2 {
 			return fmt.Errorf("lb.subnet_ids must have at least 2 subnets")
@@ -587,6 +611,9 @@ func (c *AppConfig) Validate() error {
 	}
 	if c.Observability.EnableSSMPrivateDNS != nil && *c.Observability.EnableSSMPrivateDNS && (c.Observability.EnableSSMEndpoints == nil || !*c.Observability.EnableSSMEndpoints) {
 		return fmt.Errorf("observability.enable_ssm_private_dns=true requires observability.enable_ssm_endpoints=true")
+	}
+	if c.Observability.Enabled != nil && *c.Observability.Enabled && strings.TrimSpace(c.Observability.LogKMSKeyID) == "" {
+		return fmt.Errorf("observability.log_kms_key_id is required when observability.enabled=true")
 	}
 
 	if c.Recovery.SnapshotTimeUTC == "" {

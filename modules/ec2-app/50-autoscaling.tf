@@ -15,7 +15,7 @@ resource "aws_launch_template" "app" {
 
   metadata_options {
     http_endpoint = "enabled"
-    http_tokens   = var.imds_v2_required ? "required" : "optional"
+    http_tokens   = "required"
   }
 
   tag_specifications {

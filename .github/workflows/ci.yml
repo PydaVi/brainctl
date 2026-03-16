@@ -84,7 +84,10 @@ jobs:
         id: stack
         shell: bash
         run: |
-          body="${{ github.event.pull_request.body }}"
+          body=$(cat <<'EOF'
+          ${{ github.event.pull_request.body }}
+          EOF
+          )
           stack_dir=$(printf '%s\n' "$body" | sed -nE 's/.*stack[ _-]?dir:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)
           if [ -z "$stack_dir" ]; then
             echo "stack_dir não encontrado no corpo do PR. Use: stack_dir: stacks/ec2-app/dev"

@@ -3,7 +3,7 @@
     "Statement": [
       { "Effect": "Allow", "Action": ["ec2:Describe*", "iam:Get*", "iam:List*"], "Resource": "*" },
       { "Effect": "Allow", "Action":
-  ["s3:GetObject","s3:ListBucket","s3:PutObject","s3:DeleteObject"], "Resource": [
+  ["s3:GetObject","s3:ListBucket","s3:GetBucketLocation","s3:GetBucketVersioning","s3:PutObject","s3:DeleteObject"], "Resource": [
           "arn:aws:s3:::pydavi-terraform-state",
           "arn:aws:s3:::pydavi-terraform-state/*",
           "arn:aws:s3:::brainctl-terraform-state",

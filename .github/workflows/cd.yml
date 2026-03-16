@@ -32,7 +32,10 @@ jobs:
         id: resolve
         shell: bash
         run: |
-          stack_dir="${{ vars.STACK_DIR }}"
+          stack_dir=$(cat <<'EOF'
+          ${{ vars.STACK_DIR }}
+          EOF
+          )
           if [ -z "$stack_dir" ]; then
             echo "vars.STACK_DIR não definido (ex: stacks/ec2-app/prod)"
             exit 1

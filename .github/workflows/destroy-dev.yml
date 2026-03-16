@@ -58,6 +58,11 @@ jobs:
           chmod +x /usr/local/bin/terragrunt
           terragrunt --version
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
       - name: Decide destroy mode
         id: decide
         shell: bash

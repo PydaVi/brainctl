@@ -32,6 +32,7 @@ remote_state {
     region       = {{ quote .BackendRegion }}
     encrypt      = true
   }
+  disable_bucket_update = true
 }
 
 terraform {

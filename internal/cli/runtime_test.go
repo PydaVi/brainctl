@@ -16,6 +16,7 @@ app:
   region: us-east-1
 infrastructure:
   vpc_id: vpc-123
+  vpc_cidr: 10.0.0.0/16
   subnet_id: subnet-1
 ec2:
   instance_type: t3.micro
@@ -27,6 +28,7 @@ app_scaling:
   enabled: false
 observability:
   enabled: true
+  log_kms_key_id: alias/test-logs
 recovery:
   enabled: false
 `

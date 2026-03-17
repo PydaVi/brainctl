@@ -35,7 +35,9 @@ module "k8s_workers" {
   region      = "{{ .App.Region }}"
 
   vpc_id                 = "{{ .Infrastructure.VpcID }}"
+  vpc_cidr               = "{{ .Infrastructure.VpcCIDR }}"
   subnet_id              = "{{ .Infrastructure.SubnetID }}"
+  allowed_egress_cidrs   = [{{- range $i, $c := .Infrastructure.AllowedEgressCIDRs -}}{{- if $i }}, {{ end }}"{{ $c }}"{{- end -}}]
   endpoint_subnet_ids    = [{{- range $i, $s := .EndpointSubnetIDs -}}{{- if $i }}, {{ end }}"{{ $s }}"{{- end -}}]
   control_plane_ami      = "{{ .K8s.ControlPlaneAMI }}"
   worker_ami             = "{{ .K8s.WorkerAMI }}"

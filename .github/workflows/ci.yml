@@ -20,17 +20,13 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           version: latest
-
-      - name: Run tfsec (modules/)
-        run: tfsec modules/
+          working_directory: modules
 
       - name: Setup Trivy
         uses: aquasecurity/trivy-action@0.21.0
         with:
-          version: latest
-
-      - name: Run trivy config (modules/)
-        run: trivy config modules/
+          scan-type: config
+          scan-ref: modules
 
   go-quality:
     name: Go quality (gofmt, vet, test)
@@ -88,7 +84,10 @@ jobs:
         id: stack
         shell: bash
         run: |
-          body="${{ github.event.pull_request.body }}"
+          body=$(cat <<'EOF'
+          ${{ github.event.pull_request.body }}
+          EOF
+          )
           stack_dir=$(printf '%s\n' "$body" | sed -nE 's/.*stack[ _-]?dir:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)
           if [ -z "$stack_dir" ]; then
             echo "stack_dir não encontrado no corpo do PR. Use: stack_dir: stacks/ec2-app/dev"
@@ -102,6 +101,23 @@ jobs:
               ;;
           esac
           echo "stack_dir=$stack_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Install Terragrunt
+        shell: bash
+        run: |
+          version="${{ vars.TERRAGRUNT_VERSION }}"
+          if [ -z "$version" ]; then
+            echo "vars.TERRAGRUNT_VERSION não definido (ex: v0.67.0)"
+            exit 1
+          fi
+          curl -sSL -o /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/${version}/terragrunt_linux_amd64"
+          chmod +x /usr/local/bin/terragrunt
+          terragrunt --version
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
 
       - name: Run brainctl plan
         run: |

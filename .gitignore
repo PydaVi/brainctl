@@ -29,6 +29,7 @@ Thumbs.db
 
 # brainctl workspaces gerados
 .brainctl/
+.brainctl-workspace/
 
 # Logs
 *.log

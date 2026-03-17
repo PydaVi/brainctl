@@ -32,7 +32,10 @@ jobs:
         id: resolve
         shell: bash
         run: |
-          stack_dir="${{ vars.STACK_DIR }}"
+          stack_dir=$(cat <<'EOF'
+          ${{ vars.STACK_DIR }}
+          EOF
+          )
           if [ -z "$stack_dir" ]; then
             echo "vars.STACK_DIR não definido (ex: stacks/ec2-app/prod)"
             exit 1
@@ -56,6 +59,23 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Terragrunt
+        shell: bash
+        run: |
+          version="${{ vars.TERRAGRUNT_VERSION }}"
+          if [ -z "$version" ]; then
+            echo "vars.TERRAGRUNT_VERSION não definido (ex: v0.67.0)"
+            exit 1
+          fi
+          curl -sSL -o /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/${version}/terragrunt_linux_amd64"
+          chmod +x /usr/local/bin/terragrunt
+          terragrunt --version
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
 
       - name: Run brainctl plan
         run: |
@@ -100,6 +120,23 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Terragrunt
+        shell: bash
+        run: |
+          version="${{ vars.TERRAGRUNT_VERSION }}"
+          if [ -z "$version" ]; then
+            echo "vars.TERRAGRUNT_VERSION não definido (ex: v0.67.0)"
+            exit 1
+          fi
+          curl -sSL -o /usr/local/bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/${version}/terragrunt_linux_amd64"
+          chmod +x /usr/local/bin/terragrunt
+          terragrunt --version
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
 
       - name: Run brainctl apply
         run: go run ./cmd/brainctl apply --stack-dir "${{ needs.plan.outputs.stack_dir }}"

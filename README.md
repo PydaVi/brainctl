@@ -1,174 +1,82 @@
-# brainctl 🧠
+# brainctl
 
 > Original Portuguese version: [README.pt.md](README.pt.md)
 
-Infrastructure as a contract, not improvisation
+## What is brainctl
 
----
+**brainctl** is a Go CLI that lets teams describe AWS infrastructure through a simple `app.yaml` contract.
+It exists to help teams without Terraform maturity deploy consistent, secure, observable workloads from day one.
 
-## About the project
+## What changed in v2
 
-**brainctl** is a project born from real-world experience working with growing corporate infrastructure.
-It does not try to reinvent Terraform or replace existing tools. The idea is simpler: to study ways to help teams standardize infrastructure, reduce operational errors, and apply security and observability from the start, without requiring everyone to be specialists in Terraform and IaC management.
+| Component | v1 | v2 |
+|---|---|---|
+| Orchestration | Go-generated Terraform | Terragrunt workspace + Terraform modules |
+| Backend config | `backend {}` blocks per module | `remote_state` in `terragrunt.hcl` |
+| Dependencies | Manual/sequential | Terragrunt dependency graph |
+| CI/CD auth | Static AWS keys | OIDC (ephemeral credentials) |
+| Security scan | None | `tfsec` + `trivy` in PR |
+| Prod apply | Auto | Manual approval required |
 
-This project also represents my deepening studies in **Platform Engineering**, **Cloud Security**, and **product-oriented infrastructure automation**.
+## Stack
 
----
+- Go + Cobra (CLI)
+- Terragrunt (orchestration)
+- Terraform (modules)
+- AWS
+- GitHub Actions (CI/CD)
 
-## Context and motivation
-
-In many corporate environments, especially with legacy workloads, infrastructure grows with repeating patterns:
-
-* similar environments created in different ways;
-* manually made configurations;
-* dependence on specific people to operate;
-* audit and governance difficulty;
-* disaster recovery treated as documentation, not as practice.
-
-brainctl is a practical attempt to solve these problems by applying:
-
-* simple declarative contracts;
-* automatic validations;
-* structured Terraform generation;
-* observability and recovery as part of deployment, not as a later step.
-
----
-
-## Project goal
-
-The goal of brainctl is not to be a finished commercial product.
-It is an experimentation and learning foundation to build an **Infrastructure as a Product** approach.
-
-This means:
-
-* Infrastructure stops being just technical provisioning;
-* It becomes a reusable platform for teams;
-* With rules, standards, and predictability.
-
----
-
-## Core idea
+## How it works
 
 ```text
-app.yaml (+ security-groups/*.yaml)
+app.yaml (team contract)
         ↓
-validation and guardrails
+brainctl CLI
+        ↓ generates
+.brainctl-workspace/<app>-<env>/terragrunt.hcl
+        ↓ executes
+Terragrunt
+        ↓ calls
+Terraform modules (modules/)
         ↓
-structured Terraform generation
-        ↓
-AWS provisioning
-        ↓
-environment already prepared for operation
+AWS
 ```
 
-The focus is to let teams describe the required workload while brainctl guarantees minimum standards of security, availability, and governance.
+## Usage
 
----
+### Prerequisites
 
-## Project architecture
+- Go 1.22+
+- Terragrunt in PATH
+- Terraform in PATH
+- AWS credentials (local) or OIDC (CI/CD)
+
+### Main commands
+
+```bash
+go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl apply --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
+go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
+```
+
+## Repository structure
 
 ```text
-cmd/brainctl                # CLI entrypoint
-internal/config             # parser, defaults, and validations
-internal/generator          # Terraform workspace generation
-internal/blueprints/ec2app  # EC2 app workload blueprint
-internal/blueprints/k8sworkers # Kubernetes lab workload blueprint
-internal/terraform          # Terraform command wrapper
-internal/workspace          # execution directory preparation
-terraform-modulesec2-app    # base Terraform module for ec2-app
-terraform-modulesk8s-workers # Terraform module for k8s-workers blueprint
-stacks/ec2-app/dev|prod     # ec2-app blueprint contracts
-stacks/k8s-workers/dev|prod # k8s-workers blueprint contracts
+cmd/brainctl/                # CLI entrypoint
+internal/cli/                # cobra commands
+internal/config/             # app.yaml parser and validation
+internal/generator/          # terragrunt workspace generation
+internal/terragrunt/         # terragrunt runner
+internal/blueprints/         # workload blueprints
+modules/                     # Terraform modules (ec2-app, k8s-workers, shared)
+stacks/                      # declarative contracts per workload/env
+docs/adr/                    # architecture decision records
+.github/workflows/           # CI/CD pipelines
 ```
 
----
-
-## Workloads currently supported
-
-### ec2-app
-
-Blueprint focused on applications that still run on EC2, very common in corporate environments.
-
-Includes:
-
-* Application instance
-* Optional database instance
-* Standardized Security Groups
-* Operational outputs for troubleshooting and automation
-
-### k8s-workers
-
-Didactic blueprint for self-managed Kubernetes on EC2 using kubeadm (without EKS).
-
-Includes:
-
-* 1 control-plane + N workers
-* automatic bootstrap with kubeadm init/join
-* minimum Security Group for API server and traffic between nodes
-* kubeconfig and cluster validation instructions
-
-Technical documentation:
-- `docs/blueprints/ec2-app.md`
-- `docs/blueprints/kubernetes-workers.md`
-- `docs/cicd-v1.md`
-
----
-
-## Scalability and availability
-
-brainctl allows provisioning:
-
-* Public or private Application Load Balancer
-* Target groups and listeners
-* Auto Scaling Group for the application layer
-* CPU-based policies
-* Multi-AZ support
-
-### Applied guardrails
-
-* Does not allow Auto Scaling without Load Balancer
-* Prevents configurations that would generate an inconsistent environment
-
----
-
-## Operational observability
-
-The project automatically provisions:
-
-* CloudWatch dashboards
-* Configurable alarms
-* SNS notifications
-* Session Manager integration
-* Continuous CloudWatch Agent configuration through SSM State Manager (without instance rebuild)
-* Support for private endpoints of SSM, CloudWatch (Logs/Metrics), and STS
-* Private endpoints distributed across configured subnets for infrastructure
-
-Goal: the environment is created with a guaranteed minimum operational visibility.
-
----
-
-## Recovery and continuity
-
-Implemented as part of the blueprint, not as a separate solution:
-
-* Automatic snapshots through DLM
-* SSM runbooks for restore
-* Full application restore
-* Scheduled DR drill through EventBridge
-
-### Recovery guardrails
-
-Examples:
-
-* DR drill requires recovery enabled
-* Database backup requires active database
-* DR with load balancer registration validates observability and availability prerequisites
-
----
-
-## Declarative contract
-
-Simplified example:
+## Contract example
 
 ```yaml
 workload:
@@ -200,84 +108,16 @@ recovery:
   enabled: true
 ```
 
-The proposal is to keep the contract understandable for application teams, not only for Terraform specialists.
+## Guardrails (examples)
 
-> Terraform remote backend is configured through the contract (`terraform.backend`) to avoid hardcoding bucket/region and allow isolation by company/account/environment.
+- Auto Scaling is blocked without a Load Balancer.
+- Recovery drills validate dependent prerequisites (observability, backup flags).
+- Extra SG rules are loaded from `security-groups/` by type (`app`, `db`, `alb`).
 
----
+## Contributing a new blueprint
 
-## Security Group rules by files
-
-brainctl allows network customizations through YAML files per SG in `security-groups/`, keeping scope controlled by type (`app`, `db`, `alb`).
-
----
-
-## How to run
-
-### Prerequisites
-
-* Go 1.22+
-* Terraform installed and in PATH
-* AWS credentials with provisioning permissions
-
-### Main commands
-
-```bash
-go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl apply --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
-```
-
-### Example for k8s-workers
-
-```bash
-go run ./cmd/brainctl plan --stack-dir stacks/k8s-workers/dev
-go run ./cmd/brainctl apply --stack-dir stacks/k8s-workers/dev
-go run ./cmd/brainctl destroy --stack-dir stacks/k8s-workers/dev
-```
-
----
-
-## Terraform backend (remote state)
-
-Configure in contract through `terraform.backend`:
-
-- `bucket`: S3 bucket for remote state.
-- `key_prefix`: prefix to isolate state by team/company (final key includes app and environment).
-- `region`: region of the state bucket.
-- `use_lockfile`: enables state locking in S3 backend.
-
-## Main guardrails
-
-- Auto Scaling without Load Balancer is blocked during validation.
-- Recovery operations validate prerequisites of dependent resources.
-- Extra Security Group rules are read from files in `security-groups/` by SG type (`app`, `db`, `alb`).
-
-## Expected outputs
-
-Depending on resource combination, outputs include:
-
-- IDs and IPs of instances.
-- ALB DNS.
-- ASG name.
-- observability references (dashboards/alarms).
-- artifacts and commands related to recovery.
-
-## CLI operation
-
-```bash
-go run ./cmd/brainctl plan --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl apply --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl status --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl output --stack-dir stacks/ec2-app/dev
-go run ./cmd/brainctl destroy --stack-dir stacks/ec2-app/dev
-```
-
-## Reference directories
-
-- base contract: `stacks/ec2-app/dev/app.yaml`
-- production contract: `stacks/ec2-app/prod/app.yaml`
-- SG rules: `stacks/ec2-app/*/security-groups/*.yaml`
-- example bootstrap script: `stacks/ec2-app/*/scripts/app-user-data.ps1`
+1. Add a Terraform module under `modules/<blueprint>/`.
+2. Add a blueprint generator in `internal/blueprints/` to map `AppConfig` → inputs.
+3. Register the blueprint in `internal/blueprints/registry.go`.
+4. Add example contracts under `stacks/<blueprint>/`.
+5. Document the blueprint in `docs/blueprints/`.

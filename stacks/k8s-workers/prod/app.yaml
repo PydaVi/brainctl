@@ -16,7 +16,10 @@ app:
 
 infrastructure:
   vpc_id: vpc-xxxxxxxx
+  vpc_cidr: "10.0.0.0/16"
   subnet_id: subnet-xxxxxxxx
+  allowed_egress_cidrs:
+    - "10.0.0.0/16"
 
 k8s:
   control_plane_instance_type: t3.large

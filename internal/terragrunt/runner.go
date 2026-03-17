@@ -24,12 +24,12 @@ func NewRunner(wsDir string) *Runner {
 
 // Init prepara o backend e módulos via Terragrunt.
 func (r *Runner) Init() error {
-	return r.run("init")
+	return r.run("init", "-input=false")
 }
 
 // Plan executa um plan sem arquivo de saída.
 func (r *Runner) Plan() error {
-	return r.run("plan")
+	return r.run("plan", "-input=false")
 }
 
 // PlanOut executa um plan e salva no arquivo informado.
@@ -37,12 +37,12 @@ func (r *Runner) PlanOut(planFile string) error {
 	if planFile == "" {
 		return fmt.Errorf("plan file is required")
 	}
-	return r.run("plan", "-out", planFile)
+	return r.run("plan", "-out", planFile, "-input=false")
 }
 
 // Apply executa apply, opcionalmente com auto-approve.
 func (r *Runner) Apply(autoApprove bool) error {
-	args := []string{"apply"}
+	args := []string{"apply", "-input=false"}
 	if autoApprove {
 		args = append(args, "-auto-approve")
 	}
@@ -51,7 +51,7 @@ func (r *Runner) Apply(autoApprove bool) error {
 
 // Destroy executa destroy, opcionalmente com auto-approve.
 func (r *Runner) Destroy(autoApprove bool) error {
-	args := []string{"destroy"}
+	args := []string{"destroy", "-input=false"}
 	if autoApprove {
 		args = append(args, "-auto-approve")
 	}
@@ -102,7 +102,7 @@ func (r *Runner) ApplyPlan(planFile string, autoApprove bool) error {
 	if planFile == "" {
 		return fmt.Errorf("plan file is required")
 	}
-	args := []string{"apply"}
+	args := []string{"apply", "-input=false"}
 	if autoApprove {
 		args = append(args, "-auto-approve")
 	}
@@ -116,7 +116,7 @@ func (r *Runner) StatePull() (present bool, err error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command("terragrunt", "state", "pull")
+	cmd := exec.Command("terragrunt", "state", "pull", "-input=false")
 	cmd.Dir = r.wsDir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

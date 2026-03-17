@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   plan:
@@ -34,6 +35,26 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Resolve stack dir from PR body
+        id: pr_body
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha,
+            });
+            if (!prs.data || prs.data.length === 0) {
+              core.setOutput('stack_dir', '');
+              return;
+            }
+            const body = prs.data[0].body || '';
+            const match = body.match(/stack[ _-]?dir:\s*`?([^`\s]+)`?/i);
+            core.setOutput('stack_dir', match ? match[1] : '');
+
       - name: Resolve stack dir and environment
         id: resolve
         shell: bash
@@ -48,8 +69,7 @@ jobs:
           fi
 
           if [ -z "$stack_dir" ]; then
-            commit_msg='${{ github.event.head_commit.message }}'
-            stack_dir=$(printf '%s\n' "$commit_msg" | sed -nE 's/.*stack[ _-]?dir:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)
+            stack_dir='${{ steps.pr_body.outputs.stack_dir }}'
           fi
 
           if [ -z "$stack_dir" ]; then

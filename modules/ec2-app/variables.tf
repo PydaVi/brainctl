@@ -380,11 +380,6 @@ variable "enable_observability" {
 variable "cloudwatch_log_kms_key_id" {
   description = "KMS Key ID/ARN para criptografia do Log Group do CloudWatch"
   type        = string
-
-  validation {
-    condition     = !var.enable_observability || trimspace(var.cloudwatch_log_kms_key_id) != ""
-    error_message = "cloudwatch_log_kms_key_id is required when enable_observability=true"
-  }
 }
 
 variable "cpu_high_threshold" {

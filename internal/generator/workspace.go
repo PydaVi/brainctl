@@ -40,7 +40,7 @@ terraform {
 }
 
 inputs = {
-  app_name    = {{ quote .App.Name }}
+  name        = {{ quote .App.Name }}
   environment = {{ quote .App.Environment }}
   region      = {{ quote .App.Region }}
   vpc_id      = {{ quote .Infrastructure.VpcID }}

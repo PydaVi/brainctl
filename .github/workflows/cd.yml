@@ -4,6 +4,12 @@ name: cd
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      stack_dir:
+        description: "Stack dir para aplicar (ex: stacks/ec2-app/prod)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -36,8 +42,18 @@ jobs:
           ${{ vars.STACK_DIR }}
           EOF
           )
+
+          if [ -z "$stack_dir" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            stack_dir='${{ inputs.stack_dir }}'
+          fi
+
           if [ -z "$stack_dir" ]; then
-            echo "vars.STACK_DIR não definido (ex: stacks/ec2-app/prod)"
+            commit_msg='${{ github.event.head_commit.message }}'
+            stack_dir=$(printf '%s\n' "$commit_msg" | sed -nE 's/.*stack[ _-]?dir:[[:space:]]*`?([^`[:space:]]+).*/\1/p' | head -n1)
+          fi
+
+          if [ -z "$stack_dir" ]; then
+            echo "stack_dir não definido. Use vars.STACK_DIR, workflow_dispatch input, ou inclua no commit message: stack_dir: stacks/ec2-app/prod"
             exit 1
           fi
 
